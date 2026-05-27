@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Mox" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/mox_ink</item>
+        <item name="android:statusBarColor">@color/mox_ink</item>
+        <item name="android:navigationBarColor">@color/mox_ink</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+    <style name="Theme.Mox.Transparent" parent="android:Theme.Translucent.NoTitleBar" />
+</resources>

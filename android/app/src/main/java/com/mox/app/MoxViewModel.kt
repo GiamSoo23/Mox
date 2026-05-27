@@ -1,0 +1,183 @@
+package com.mox.app
+
+import android.app.Application
+import android.content.ContentResolver
+import android.content.ContentValues
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import androidx.core.content.FileProvider
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.IOException
+
+sealed class UiState {
+    object Loading : UiState()
+    data class Empty(val error: String? = null) : UiState()
+    data class Ready(val file: CurrentFile, val downloadedTo: File? = null) : UiState()
+    data class Uploading(val name: String) : UiState()
+    data class Sent(val file: CurrentFile) : UiState()
+    data class Error(val message: String) : UiState()
+}
+
+class MoxViewModel(app: Application) : AndroidViewModel(app) {
+    private val repo = SupabaseRepo()
+    private val _state = MutableStateFlow<UiState>(UiState.Loading)
+    val state: StateFlow<UiState> = _state.asStateFlow()
+    private var pollJob: Job? = null
+
+    // Persisted across launches so we don't re-notify or re-download the
+    // same file every time the user opens the app.
+    private val prefs = app.getSharedPreferences("mox", android.content.Context.MODE_PRIVATE)
+    private var lastHandledKey: String? = prefs.getString("lastHandledKey", null)
+
+    fun startPolling() {
+        if (pollJob?.isActive == true) return
+        pollJob = viewModelScope.launch {
+            while (true) {
+                refreshOnce()
+                delay(Config.POLL_MS)
+            }
+        }
+    }
+
+    fun stopPolling() {
+        pollJob?.cancel()
+        pollJob = null
+    }
+
+    private suspend fun refreshOnce() {
+        try {
+            val current = repo.fetchCurrent()
+            _state.value = if (current == null) UiState.Empty()
+                           else UiState.Ready(current)
+            if (current != null && current.uploadedFrom != "android") {
+                val key = "${current.storagePath}|${current.uploadedAt}"
+                if (key != lastHandledKey) {
+                    lastHandledKey = key
+                    prefs.edit().putString("lastHandledKey", key).apply()
+                    autoSaveAndNotify(current)
+                }
+            }
+        } catch (e: Exception) {
+            if (_state.value is UiState.Loading) {
+                _state.value = UiState.Empty(error = e.message)
+            }
+            // Otherwise keep the last good state.
+        }
+    }
+
+    private suspend fun autoSaveAndNotify(file: CurrentFile) {
+        try {
+            val ctx = getApplication<Application>()
+            val uri = saveToPublicDownloads(file)
+            MoxNotifications.showFileSaved(
+                ctx, file.originalName, file.sizeBytes, uri, file.mimeType
+            )
+        } catch (e: Exception) {
+            // Surface error but don't blow up state — keep last good UI.
+            android.util.Log.w("Mox", "Auto-save failed: ${e.message}")
+        }
+    }
+
+    private suspend fun saveToPublicDownloads(file: CurrentFile): Uri = withContext(Dispatchers.IO) {
+        val ctx = getApplication<Application>()
+        val resolver = ctx.contentResolver
+        if (Build.VERSION.SDK_INT < 29) {
+            // Pre-Q: write to app-internal Downloads as a fallback (no MediaStore.Downloads).
+            val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
+            val out = File(dir, sanitize(file.originalName))
+            out.outputStream().use { repo.downloadToStream(it, file) }
+            return@withContext FileProvider.getUriForFile(
+                ctx, "${ctx.packageName}.fileprovider", out
+            )
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(file.originalName))
+            file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            ?: throw IOException("Couldn't create Downloads entry")
+        resolver.openOutputStream(uri)!!.use { out ->
+            repo.downloadToStream(out, file)
+        }
+        values.clear()
+        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(uri, values, null, null)
+        uri
+    }
+
+    private fun sanitize(name: String): String =
+        name.replace("[^A-Za-z0-9._-]".toRegex(), "_")
+
+    fun upload(uri: Uri) = viewModelScope.launch {
+        val resolver = getApplication<Application>().contentResolver
+        val (name, size, mime) = describe(resolver, uri)
+        _state.value = UiState.Uploading(name)
+        try {
+            val row = repo.uploadFromContentUri(resolver, uri, name, size, mime)
+            _state.value = UiState.Sent(row)
+        } catch (e: Exception) {
+            _state.value = UiState.Error(e.message ?: "Upload failed")
+        }
+    }
+
+    fun saveAndShare() = viewModelScope.launch {
+        val s = _state.value as? UiState.Ready ?: return@launch
+        try {
+            val app = getApplication<Application>()
+            val dir = File(app.cacheDir, "downloads").apply { mkdirs() }
+            val safe = s.file.originalName.replace("[^A-Za-z0-9._-]".toRegex(), "_")
+            val outFile = File(dir, safe)
+            repo.downloadTo(outFile, s.file)
+            _state.value = UiState.Ready(s.file, downloadedTo = outFile)
+
+            val shareUri: Uri = FileProvider.getUriForFile(
+                app, "${app.packageName}.fileprovider", outFile
+            )
+            val share = Intent(Intent.ACTION_SEND).apply {
+                type = s.file.mimeType ?: "*/*"
+                putExtra(Intent.EXTRA_STREAM, shareUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            app.startActivity(Intent.createChooser(share, "Save / share").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            })
+        } catch (e: Exception) {
+            _state.value = UiState.Error(e.message ?: "Download failed")
+        }
+    }
+
+    private fun describe(cr: ContentResolver, uri: Uri): Triple<String, Long, String?> {
+        var name = uri.lastPathSegment ?: "file"
+        var size = -1L
+        cr.query(uri, null, null, null, null)?.use { c ->
+            if (c.moveToFirst()) {
+                val ni = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                val si = c.getColumnIndex(OpenableColumns.SIZE)
+                if (ni >= 0 && !c.isNull(ni)) name = c.getString(ni)
+                if (si >= 0 && !c.isNull(si)) size = c.getLong(si)
+            }
+        }
+        if (size <= 0) {
+            cr.openFileDescriptor(uri, "r")?.use { size = it.statSize }
+        }
+        val mime = cr.getType(uri)
+        return Triple(name, size, mime)
+    }
+}

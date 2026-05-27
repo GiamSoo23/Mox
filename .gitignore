@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Secrets
+.env
+**/.env
+**/local.properties
+
+# Swift
+mac/.build/
+mac/.swiftpm/
+mac/Mox.app/
+mac/*.xcodeproj/
+mac/Package.resolved
+
+# Android / Gradle
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/captures/
+android/local.properties
+android/**/*.iml
+android/.cxx/
+
+# IDE
+.vscode/
+.idea/

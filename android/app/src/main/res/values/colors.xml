@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="mox_ink">#0F172A</color>
+    <color name="mox_paper">#F8FAFC</color>
+    <color name="mox_red">#B71C1C</color>
+    <color name="mox_green">#5DDFA8</color>
+    <color name="mox_green_shadow">#1F6B4A</color>
+</resources>
