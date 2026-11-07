@@ -8,10 +8,10 @@ import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 
-/// Background apps can't reliably write the system clipboard on Android 10+
-/// (Samsung enforces this hard). This transparent, single-frame activity
-/// gives us one tick of foreground state — just enough to call
-/// `setPrimaryClip` so the keyboard's clipboard chip picks up the file.
+// / Background apps can't reliably write the system clipboard on Android 10+
+// / (Samsung enforces this hard). This transparent, single-frame activity
+// / gives us one tick of foreground state — just enough to call
+// / `setPrimaryClip` so the keyboard's clipboard chip picks up the file.
 class CopyToClipboardActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

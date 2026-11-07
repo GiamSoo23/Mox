@@ -3,6 +3,9 @@ package com.mox.app
 import android.content.ContentResolver
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import java.io.File
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Headers.Companion.toHeaders
@@ -15,9 +18,6 @@ import okio.BufferedSink
 import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.File
-import java.io.IOException
-import java.util.concurrent.TimeUnit
 
 data class CurrentFile(
     val storagePath: String,
@@ -29,12 +29,12 @@ data class CurrentFile(
 ) {
     companion object {
         fun fromJson(o: JSONObject) = CurrentFile(
-            storagePath  = o.getString("storage_path"),
+            storagePath = o.getString("storage_path"),
             originalName = o.getString("original_name"),
-            mimeType     = o.optString("mime_type").ifEmpty { null },
-            sizeBytes    = o.getLong("size_bytes"),
+            mimeType = o.optString("mime_type").ifEmpty { null },
+            sizeBytes = o.getLong("size_bytes"),
             uploadedFrom = o.getString("uploaded_from"),
-            uploadedAt   = o.getString("uploaded_at")
+            uploadedAt = o.getString("uploaded_at")
         )
     }
 }
@@ -115,10 +115,14 @@ class SupabaseRepo(
         }
         val upsert = Request.Builder()
             .url("$baseUrl/rest/v1/current_file?on_conflict=id")
-            .headers(authHeaders(extra = mapOf(
-                "Content-Type" to "application/json",
-                "Prefer" to "resolution=merge-duplicates,return=representation"
-            )))
+            .headers(
+                authHeaders(
+                    extra = mapOf(
+                        "Content-Type" to "application/json",
+                        "Prefer" to "resolution=merge-duplicates,return=representation"
+                    )
+                )
+            )
             .post(row.toString().toRequestBody("application/json".toMediaType()))
             .build()
         client.newCall(upsert).execute().use { resp ->
@@ -128,40 +132,40 @@ class SupabaseRepo(
         }
     }
 
-    suspend fun signedDownloadUrl(path: String, expiresIn: Int = 600): String = withContext(Dispatchers.IO) {
-        val body = JSONObject().put("expiresIn", expiresIn).toString()
-            .toRequestBody("application/json".toMediaType())
-        val req = Request.Builder()
-            .url("$baseUrl/storage/v1/object/sign/$bucket/$path")
-            .headers(authHeaders(extra = mapOf("Content-Type" to "application/json")))
-            .post(body)
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("Sign failed: HTTP ${resp.code}")
-            val obj = JSONObject(resp.body!!.string())
-            "$baseUrl/storage/v1${obj.getString("signedURL")}"
+    suspend fun signedDownloadUrl(path: String, expiresIn: Int = 600): String =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("expiresIn", expiresIn).toString()
+                .toRequestBody("application/json".toMediaType())
+            val req = Request.Builder()
+                .url("$baseUrl/storage/v1/object/sign/$bucket/$path")
+                .headers(authHeaders(extra = mapOf("Content-Type" to "application/json")))
+                .post(body)
+                .build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) throw IOException("Sign failed: HTTP ${resp.code}")
+                val obj = JSONObject(resp.body!!.string())
+                "$baseUrl/storage/v1${obj.getString("signedURL")}"
+            }
         }
-    }
 
     suspend fun downloadTo(file: File, current: CurrentFile) = withContext(Dispatchers.IO) {
         file.outputStream().use { out -> downloadToStream(out, current) }
     }
 
-    suspend fun downloadToStream(
-        out: java.io.OutputStream,
-        current: CurrentFile
-    ) = withContext(Dispatchers.IO) {
-        val url = signedDownloadUrl(current.storagePath)
-        val req = Request.Builder().url(url).get().build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("Download failed: HTTP ${resp.code}")
-            resp.body!!.byteStream().copyTo(out)
+    suspend fun downloadToStream(out: java.io.OutputStream, current: CurrentFile) =
+        withContext(Dispatchers.IO) {
+            val url = signedDownloadUrl(current.storagePath)
+            val req = Request.Builder().url(url).get().build()
+            client.newCall(req).execute().use { resp ->
+                if (!resp.isSuccessful) throw IOException("Download failed: HTTP ${resp.code}")
+                resp.body!!.byteStream().copyTo(out)
+            }
         }
-    }
 
-    private fun authHeaders(extra: Map<String, String> = emptyMap()) =
-        (mapOf(
+    private fun authHeaders(extra: Map<String, String> = emptyMap()) = (
+        mapOf(
             "apikey" to key,
             "Authorization" to "Bearer $key"
-        ) + extra).toHeaders()
+        ) + extra
+        ).toHeaders()
 }

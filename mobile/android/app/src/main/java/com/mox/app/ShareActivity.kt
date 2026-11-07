@@ -8,10 +8,20 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -32,7 +42,8 @@ class ShareActivity : ComponentActivity() {
         val uri = extractUri(intent)
         if (uri == null) {
             Toast.makeText(this, "Mox: no file attached.", Toast.LENGTH_SHORT).show()
-            finish(); return
+            finish()
+            return
         }
 
         setContent {
@@ -63,7 +74,8 @@ class ShareActivity : ComponentActivity() {
             return if (Build.VERSION.SDK_INT >= 33) {
                 intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
             } else {
-                @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(Intent.EXTRA_STREAM)
             }
         }
         if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
@@ -82,26 +94,37 @@ class ShareActivity : ComponentActivity() {
 
 @Composable
 private fun ShareSheet(state: UiState, onDone: () -> Unit) {
-    Column(Modifier.padding(24.dp).widthIn(min = 240.dp),
-           horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        Modifier.padding(24.dp).widthIn(min = 240.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text("Mox", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(16.dp))
         when (state) {
             is UiState.Uploading -> {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(12.dp))
-                Text("Sending ${state.name}",
-                     style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    "Sending ${state.name}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
             }
+
             is UiState.Sent -> {
                 Text("Sent ✓", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
-                Text(state.file.originalName,
-                     style = MaterialTheme.typography.bodySmall)
+                Text(
+                    state.file.originalName,
+                    style = MaterialTheme.typography.bodySmall
+                )
                 Spacer(Modifier.height(16.dp))
                 TextButton(onDone) { Text("Done") }
-                LaunchedEffect(state) { kotlinx.coroutines.delay(900); onDone() }
+                LaunchedEffect(state) {
+                    kotlinx.coroutines.delay(900)
+                    onDone()
+                }
             }
+
             is UiState.Error -> {
                 Text("Couldn't send", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
@@ -109,6 +132,7 @@ private fun ShareSheet(state: UiState, onDone: () -> Unit) {
                 Spacer(Modifier.height(16.dp))
                 TextButton(onDone) { Text("Close") }
             }
+
             else -> {
                 CircularProgressIndicator()
             }

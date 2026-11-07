@@ -50,3 +50,42 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 }
+
+// ---------------------------------------------------------------------------
+// ktlint: Kotlin style check. Uses the official CLI directly (no third-party
+// Gradle plugin). Rules and code style come from the repo's .editorconfig.
+//   ./gradlew ktlintCheck    report problems (also runs with `check`)
+//   ./gradlew ktlintFormat   fix what can be fixed automatically
+// ---------------------------------------------------------------------------
+val ktlint: Configuration by configurations.creating
+
+dependencies {
+    ktlint("com.pinterest.ktlint:ktlint-cli:1.8.0") {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.EXTERNAL))
+        }
+    }
+}
+
+val ktlintSources = listOf("**/src/**/*.kt", "**/*.kts", "!**/build/**")
+
+val ktlintCheck by tasks.registering(JavaExec::class) {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Checks Kotlin code style with ktlint."
+    classpath = ktlint
+    mainClass.set("com.pinterest.ktlint.Main")
+    workingDir = rootDir
+    args(ktlintSources)
+}
+
+tasks.register<JavaExec>("ktlintFormat") {
+    group = LifecycleBasePlugin.VERIFICATION_GROUP
+    description = "Formats Kotlin code with ktlint."
+    classpath = ktlint
+    mainClass.set("com.pinterest.ktlint.Main")
+    jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
+    workingDir = rootDir
+    args(listOf("--format") + ktlintSources)
+}
+
+tasks.named("check") { dependsOn(ktlintCheck) }

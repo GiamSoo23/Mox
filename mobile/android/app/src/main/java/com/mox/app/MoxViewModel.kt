@@ -15,6 +15,8 @@ import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,8 +25,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.IOException
 
 sealed class UiState {
     object Loading : UiState()
@@ -64,8 +64,11 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun refreshOnce() {
         try {
             val current = repo.fetchCurrent()
-            _state.value = if (current == null) UiState.Empty()
-                           else UiState.Ready(current)
+            _state.value = if (current == null) {
+                UiState.Empty()
+            } else {
+                UiState.Ready(current)
+            }
             if (current != null && current.uploadedFrom != "android") {
                 val key = "${current.storagePath}|${current.uploadedAt}"
                 if (key != lastHandledKey) {
@@ -98,7 +101,11 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 }.getOrDefault(false)
             }
             MoxNotifications.showFileSaved(
-                ctx, file.originalName, file.sizeBytes, uri, file.mimeType,
+                ctx,
+                file.originalName,
+                file.sizeBytes,
+                uri,
+                file.mimeType,
                 copiedToClipboard = clipped
             )
         } catch (e: Exception) {
@@ -107,37 +114,39 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun saveToPublicDownloads(file: CurrentFile): Uri = withContext(Dispatchers.IO) {
-        val ctx = getApplication<Application>()
-        val resolver = ctx.contentResolver
-        if (Build.VERSION.SDK_INT < 29) {
-            // Pre-Q: write to app-internal Downloads as a fallback (no MediaStore.Downloads).
-            val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
-            val out = File(dir, sanitize(file.originalName))
-            out.outputStream().use { repo.downloadToStream(it, file) }
-            return@withContext FileProvider.getUriForFile(
-                ctx, "${ctx.packageName}.fileprovider", out
-            )
+    private suspend fun saveToPublicDownloads(file: CurrentFile): Uri =
+        withContext(Dispatchers.IO) {
+            val ctx = getApplication<Application>()
+            val resolver = ctx.contentResolver
+            if (Build.VERSION.SDK_INT < 29) {
+                // Pre-Q: write to app-internal Downloads as a fallback (no MediaStore.Downloads).
+                val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
+                val out = File(dir, sanitize(file.originalName))
+                out.outputStream().use { repo.downloadToStream(it, file) }
+                return@withContext FileProvider.getUriForFile(
+                    ctx,
+                    "${ctx.packageName}.fileprovider",
+                    out
+                )
+            }
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(file.originalName))
+                file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: throw IOException("Couldn't create Downloads entry")
+            resolver.openOutputStream(uri)!!.use { out ->
+                repo.downloadToStream(out, file)
+            }
+            values.clear()
+            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            resolver.update(uri, values, null, null)
+            uri
         }
-        val values = ContentValues().apply {
-            put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(file.originalName))
-            file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
-            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            put(MediaStore.MediaColumns.IS_PENDING, 1)
-        }
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IOException("Couldn't create Downloads entry")
-        resolver.openOutputStream(uri)!!.use { out ->
-            repo.downloadToStream(out, file)
-        }
-        values.clear()
-        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-        resolver.update(uri, values, null, null)
-        uri
-    }
 
-    private fun sanitize(name: String): String =
-        name.replace("[^A-Za-z0-9._-]".toRegex(), "_")
+    private fun sanitize(name: String): String = name.replace("[^A-Za-z0-9._-]".toRegex(), "_")
 
     fun upload(uri: Uri) = viewModelScope.launch {
         val resolver = getApplication<Application>().contentResolver
@@ -162,7 +171,9 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
             _state.value = UiState.Ready(s.file, downloadedTo = outFile)
 
             val shareUri: Uri = FileProvider.getUriForFile(
-                app, "${app.packageName}.fileprovider", outFile
+                app,
+                "${app.packageName}.fileprovider",
+                outFile
             )
             val share = Intent(Intent.ACTION_SEND).apply {
                 type = s.file.mimeType ?: "*/*"
@@ -170,9 +181,11 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            app.startActivity(Intent.createChooser(share, "Save / share").apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
+            app.startActivity(
+                Intent.createChooser(share, "Save / share").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
         } catch (e: Exception) {
             _state.value = UiState.Error(e.message ?: "Download failed")
         }
