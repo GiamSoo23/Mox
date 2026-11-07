@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // before the user starts pressing the hotkey, not after the first error.
         Notifier.requestAuthorization()
 
+        LoginItem.autoEnableOnFirstLaunchIfNeeded()
+
         NotificationCenter.default.addObserver(self,
             selector: #selector(handleSendSelection),
             name: .moxSendSelection, object: nil)
