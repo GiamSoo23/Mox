@@ -50,11 +50,13 @@ final class MenuBarController: NSObject {
         Task {
             do {
                 try await supabase.downloadCurrent(to: dest)
+                let clipped = PasteboardCopier.copy(fileURL: dest, mime: file.mime_type)
                 await MainActor.run {
-                    self.showStatus("Saved \(dest.lastPathComponent) to Downloads")
+                    let suffix = clipped ? " · copied to clipboard" : ""
+                    self.showStatus("Saved \(dest.lastPathComponent) to Downloads\(suffix)")
                     Notifier.show(
                         title: "New file from phone",
-                        body: "\(dest.lastPathComponent) · \(humanSize(file.size_bytes)) — saved to Downloads"
+                        body: "\(dest.lastPathComponent) · \(humanSize(file.size_bytes)) — Downloads\(suffix)"
                     )
                 }
             } catch {
