@@ -16,7 +16,7 @@ the state machines behind the UI.
 
 ## Data model
 
-The backend is defined entirely in [supabase/schema.sql](../supabase/schema.sql).
+The backend is defined entirely in [backend/schema.sql](../backend/schema.sql).
 The script is idempotent, so it's safe to run again.
 
 ```mermaid
@@ -67,15 +67,15 @@ so the row never points at bytes that haven't finished uploading. Receiving
 is **1 → 4 → 5**.
 
 Implementations:
-[SupabaseService.swift](../mac/Sources/Mox/SupabaseService.swift) ·
-[SupabaseRepo.kt](../android/app/src/main/java/com/mox/app/SupabaseRepo.kt)
+[SupabaseService.swift](../desktop/macos/Sources/Mox/SupabaseService.swift) ·
+[SupabaseRepo.kt](../mobile/android/app/src/main/java/com/mox/app/SupabaseRepo.kt)
 
 ---
 
 ## Mac client
 
 A SwiftPM executable packaged into `Mox.app` by
-[build-app.sh](../mac/build-app.sh). `LSUIElement` keeps it out of the Dock.
+[build-app.sh](../desktop/macos/build-app.sh). `LSUIElement` keeps it out of the Dock.
 It has no third-party dependencies.
 
 ```mermaid

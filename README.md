@@ -121,7 +121,7 @@ HTTP surface) are in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
   notification channels. minSdk 26, targetSdk 35.
 - **Backend:** Supabase (Postgres + PostgREST + Storage). The schema, RLS
   policies and bucket are defined in one idempotent
-  [SQL file](supabase/schema.sql).
+  [SQL file](backend/schema.sql).
 
 ---
 
@@ -145,21 +145,21 @@ Most of the work wasn't the networking. It was fitting into what each OS allows:
    one key combination to Mox instead of Mox watching every keystroke. The
    default moved from ⌘⇧U to **⌘⇧M** because Finder's
    *Go → Utilities* takes ⌘⇧U whenever Finder is the frontmost app, which is
-   exactly when you'd press it. ([HotKey.swift](mac/Sources/Mox/HotKey.swift))
+   exactly when you'd press it. ([HotKey.swift](desktop/macos/Sources/Mox/HotKey.swift))
 2. **Reading what's selected in Finder.** There's no public API for it, so
    Mox runs a small AppleScript through `NSAppleScript`, with the Automation
    permission prompt explained in `Info.plist`.
-   ([FinderSelection.swift](mac/Sources/Mox/FinderSelection.swift))
+   ([FinderSelection.swift](desktop/macos/Sources/Mox/FinderSelection.swift))
 3. **Android 10+ won't let background apps write the clipboard** (and Samsung
    is strict about it). When a file arrives, Mox tries anyway. If that fails,
    tapping the notification opens a **transparent, single-frame activity**
    whose only job is to call `setPrimaryClip` while it's in the foreground.
-   ([CopyToClipboardActivity.kt](android/app/src/main/java/com/mox/app/CopyToClipboardActivity.kt))
+   ([CopyToClipboardActivity.kt](mobile/android/app/src/main/java/com/mox/app/CopyToClipboardActivity.kt))
 4. **Scoped storage.** On Android 10+ received files go into the public
    Downloads folder through `MediaStore` with `IS_PENDING`, so other apps
    never see a half-written file. Android 8–9 falls back to app storage
    behind a `FileProvider`.
-   ([MoxViewModel.kt](android/app/src/main/java/com/mox/app/MoxViewModel.kt))
+   ([MoxViewModel.kt](mobile/android/app/src/main/java/com/mox/app/MoxViewModel.kt))
 5. **No echo, no repeats.** Each client ignores rows it wrote itself
    (`uploaded_from`). Android saves the last file it handled
    (`storage_path|uploaded_at`) in `SharedPreferences`, so reopening the app
@@ -168,10 +168,10 @@ Most of the work wasn't the networking. It was fitting into what each OS allows:
 6. **Pasting images on the Mac.** Received images go on the pasteboard as a
    file URL and as TIFF/PNG data, so `⌘V` works in Finder (copies the file)
    and in chat apps or rich-text editors (pastes the image).
-   ([PasteboardCopier.swift](mac/Sources/Mox/PasteboardCopier.swift))
+   ([PasteboardCopier.swift](desktop/macos/Sources/Mox/PasteboardCopier.swift))
 7. **Always running.** The Mac app adds itself as a Login Item once, on first
    launch, through `SMAppService`. If you turn that off later, it stays off.
-   ([LoginItem.swift](mac/Sources/Mox/LoginItem.swift))
+   ([LoginItem.swift](desktop/macos/Sources/Mox/LoginItem.swift))
 
 ---
 
@@ -179,7 +179,7 @@ Most of the work wasn't the networking. It was fitting into what each OS allows:
 
 Mox is a **single-user** tool. Both clients ship with the project's public
 (anon / publishable) key, and the Row Level Security policies in
-[schema.sql](supabase/schema.sql) give that key full access to the one table
+[schema.sql](backend/schema.sql) give that key full access to the one table
 and the one bucket. **Anyone with a build of the app can read and replace the
 current file**, so builds aren't meant to be shared.
 
@@ -229,39 +229,45 @@ once, and later iPhone and Windows support. The design is in
 
 ```
 mox/
-├── supabase/
+├── backend/
 │   └── schema.sql            bucket, singleton table, RLS policies (idempotent)
-├── mac/                      Swift menu-bar app (SwiftPM)
-│   ├── Sources/Mox/
-│   │   ├── AppDelegate.swift       wiring, polling loop, send flow
-│   │   ├── MenuBarController.swift status item, menu, auto-save from phone
-│   │   ├── SupabaseService.swift   REST client: Storage + PostgREST
-│   │   ├── HotKey.swift            Carbon global hotkey + parser
-│   │   ├── FinderSelection.swift   AppleScript bridge
-│   │   ├── PasteboardCopier.swift  file + image clipboard
-│   │   ├── LoginItem.swift         SMAppService wrapper
-│   │   └── Config.swift            .env loader
-│   └── build-app.sh          packages the binary into Mox.app
-├── android/                  Kotlin app (Gradle)
-│   └── app/src/main/java/com/mox/app/
-│       ├── MainActivity.kt          Compose UI, lifecycle-bound polling
-│       ├── ShareActivity.kt         Share-sheet target (ACTION_SEND)
-│       ├── MoxViewModel.kt          UI state, auto-save, dedupe
-│       ├── SupabaseRepo.kt          REST client: Storage + PostgREST
-│       ├── MoxNotifications.kt      channel + "file arrived" notification
-│       └── CopyToClipboardActivity.kt  foreground trampoline for clipboard
+├── desktop/
+│   └── macos/                Swift menu-bar app (SwiftPM)
+│       ├── Sources/Mox/
+│       │   ├── AppDelegate.swift       wiring, polling loop, send flow
+│       │   ├── MenuBarController.swift status item, menu, auto-save from phone
+│       │   ├── SupabaseService.swift   REST client: Storage + PostgREST
+│       │   ├── HotKey.swift            Carbon global hotkey + parser
+│       │   ├── FinderSelection.swift   AppleScript bridge
+│       │   ├── PasteboardCopier.swift  file + image clipboard
+│       │   ├── LoginItem.swift         SMAppService wrapper
+│       │   └── Config.swift            .env loader
+│       └── build-app.sh        packages the binary into Mox.app
+├── mobile/
+│   └── android/              Kotlin app (Gradle)
+│       └── app/src/main/java/com/mox/app/
+│           ├── MainActivity.kt          Compose UI, lifecycle-bound polling
+│           ├── ShareActivity.kt         Share-sheet target (ACTION_SEND)
+│           ├── MoxViewModel.kt          UI state, auto-save, dedupe
+│           ├── SupabaseRepo.kt          REST client: Storage + PostgREST
+│           ├── MoxNotifications.kt      channel + "file arrived" notification
+│           └── CopyToClipboardActivity.kt  foreground trampoline for clipboard
 └── docs/
-    └── ARCHITECTURE.md       deeper diagrams and the HTTP surface
+    ├── ARCHITECTURE.md       deeper diagrams and the HTTP surface
+    ├── DESIGN.md             v2 design decisions
+    └── ROADMAP.md            the plan, issue by issue
 ```
 
 ## Running it yourself
 
 1. Create a free project at [supabase.com](https://supabase.com), open the
-   **SQL editor**, paste [supabase/schema.sql](supabase/schema.sql) and run it.
+   **SQL editor**, paste [backend/schema.sql](backend/schema.sql) and run it.
 2. From **Project Settings → API**, copy the project URL and the anon /
    publishable key.
-3. **Mac:** `cp mac/.env.example mac/.env`, fill it in, then
-   `cd mac && ./build-app.sh && open Mox.app`. See [mac/README.md](mac/README.md).
+3. **Mac:** `cp desktop/macos/.env.example desktop/macos/.env`, fill it in, then
+   `cd desktop/macos && ./build-app.sh && open Mox.app`. See
+   [desktop/macos/README.md](desktop/macos/README.md).
 4. **Android:** put the same values in
-   [Config.kt](android/app/src/main/java/com/mox/app/Config.kt), then
-   `cd android && ./gradlew installDebug`. See [android/README.md](android/README.md).
+   [Config.kt](mobile/android/app/src/main/java/com/mox/app/Config.kt), then
+   `cd mobile/android && ./gradlew installDebug`. See
+   [mobile/android/README.md](mobile/android/README.md).

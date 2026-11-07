@@ -248,7 +248,7 @@ Changes from v1, each one a migration managed by the Supabase CLI:
 | 50 MB limit on the bucket and in a `CHECK` | Matches the free plan. |
 | New `kind` (`file` / `bundle`) and `item_count` | Multi-file sending (§9). Only bundles are unpacked, so a `.zip` you send on purpose arrives as a `.zip`. |
 | New `mox_meta.schema_version` | Clients refuse to run against an incompatible schema and say why. |
-| `schema.sql` becomes `supabase/migrations/*.sql` | Versioned, testable with `supabase test db` (pgTAP), and the wizard can apply it. |
+| `schema.sql` becomes `backend/supabase/migrations/*.sql` | Versioned, testable with `supabase test db` (pgTAP), and the wizard can apply it. |
 
 **Inactivity pause:** free Supabase projects pause after a week with no
 activity. In practice, desktop clients poll every 5 s while they're running,
@@ -333,8 +333,9 @@ mox/
 └── .github/workflows/  CI per area + release pipeline
 ```
 
-The move from today's `mac/`, `android/` and `supabase/` happens in one
-`git mv` commit, so file history is kept.
+`desktop/macos/`, `mobile/android/` and `backend/` already exist: v1's
+`mac/`, `android/` and `supabase/` were moved there with `git mv` in #3, so
+file history is kept.
 
 ## 11. Quality, testing and delivery
 

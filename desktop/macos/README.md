@@ -5,7 +5,7 @@ A SwiftPM menu-bar app. Lives in the status bar, doesn't show in the Dock.
 ## Build & run
 
 ```bash
-cd mac
+cd desktop/macos
 cp .env.example .env       # then edit .env and paste your Supabase creds
 swift run -c release       # quick test from terminal
 ```
