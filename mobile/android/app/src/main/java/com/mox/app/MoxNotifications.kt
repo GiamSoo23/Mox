@@ -34,6 +34,7 @@ object MoxNotifications {
         sizeBytes: Long,
         contentUri: Uri,
         mime: String?,
+        savedTo: String,
         copiedToClipboard: Boolean = false
     ) {
         ensureChannel(ctx)
@@ -51,9 +52,9 @@ object MoxNotifications {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val body = if (copiedToClipboard) {
-            "$name · in clipboard · saved to Downloads"
+            "$name · in clipboard · saved to $savedTo"
         } else {
-            "$name · tap to copy · saved to Downloads"
+            "$name · tap to copy · saved to $savedTo"
         }
         val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)

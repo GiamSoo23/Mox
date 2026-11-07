@@ -9,7 +9,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.core.content.FileProvider
@@ -88,7 +87,8 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun autoSaveAndNotify(file: CurrentFile) {
         try {
             val ctx = getApplication<Application>()
-            val uri = saveToPublicDownloads(file)
+            val saved = saveToPublicStorage(file)
+            val uri = saved.uri
             // Best-effort clipboard set — only succeeds if Mox is foregrounded
             // (Android 10+ blocks background clipboard writes). The notification
             // tap routes through CopyToClipboardActivity for the common case.
@@ -106,6 +106,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 file.sizeBytes,
                 uri,
                 file.mimeType,
+                savedTo = saved.locationLabel,
                 copiedToClipboard = clipped
             )
         } catch (e: Exception) {
@@ -114,36 +115,54 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private suspend fun saveToPublicDownloads(file: CurrentFile): Uri =
+    /** A saved file and a human-readable name for where it went. */
+    private data class SavedFile(val uri: Uri, val locationLabel: String)
+
+    /**
+     * Saves a received file where the user expects it: photos and videos in
+     * the Camera folder (visible in the gallery), everything else in
+     * Downloads. See [SaveDestination].
+     */
+    private suspend fun saveToPublicStorage(file: CurrentFile): SavedFile =
         withContext(Dispatchers.IO) {
             val ctx = getApplication<Application>()
             val resolver = ctx.contentResolver
             if (Build.VERSION.SDK_INT < 29) {
-                // Pre-Q: write to app-internal Downloads as a fallback (no MediaStore.Downloads).
+                // Android 8–9 has no RELATIVE_PATH, and writing to shared folders
+                // would need the storage permission. Keep the file in app
+                // storage and share it through the FileProvider instead.
                 val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
                 val out = File(dir, sanitize(file.originalName))
                 out.outputStream().use { repo.downloadToStream(it, file) }
-                return@withContext FileProvider.getUriForFile(
+                val uri = FileProvider.getUriForFile(
                     ctx,
                     "${ctx.packageName}.fileprovider",
                     out
                 )
+                return@withContext SavedFile(uri, locationLabel = "Mox")
+            }
+            val destination = SaveDestination.forMimeType(file.mimeType)
+            val collection = when (destination) {
+                SaveDestination.CAMERA_PHOTO -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+                SaveDestination.CAMERA_VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+                SaveDestination.DOWNLOADS -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
             }
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(file.originalName))
                 file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
+                // Hidden from other apps (the gallery included) until fully written.
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-                ?: throw IOException("Couldn't create Downloads entry")
+            val uri = resolver.insert(collection, values)
+                ?: throw IOException("Couldn't create an entry in ${destination.label}")
             resolver.openOutputStream(uri)!!.use { out ->
                 repo.downloadToStream(out, file)
             }
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
             resolver.update(uri, values, null, null)
-            uri
+            SavedFile(uri, destination.label)
         }
 
     private fun sanitize(name: String): String = name.replace("[^A-Za-z0-9._-]".toRegex(), "_")
