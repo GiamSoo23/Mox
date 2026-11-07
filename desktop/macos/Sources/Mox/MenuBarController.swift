@@ -5,7 +5,7 @@ import UserNotifications
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
     private let supabase: SupabaseService
-    private var current: SupabaseService.CurrentFile?
+    private var current: CurrentFile?
     private let hotkeyHuman: String
     private var lastStatus: String?
 
@@ -32,31 +32,31 @@ final class MenuBarController: NSObject {
         return img
     }
 
-    func update(current: SupabaseService.CurrentFile?, notify: Bool) {
+    func update(current: CurrentFile?, notify: Bool) {
         let didChange = current != self.current
         self.current = current
         rebuildMenu()
-        if let f = current, didChange, notify, f.uploaded_from != "mac" {
+        if let file = current, didChange, notify, file.uploadedFrom != "mac" {
             tintBusy(false, accent: true)
-            autoSaveFromPhone(f)
+            autoSaveFromPhone(file)
         }
     }
 
     /// Downloads a phone-sent file into ~/Downloads with a unique name and
     /// fires a notification on completion. Status line tracks progress.
-    private func autoSaveFromPhone(_ file: SupabaseService.CurrentFile) {
-        showStatus("Receiving \(file.original_name)…")
-        let dest = uniqueDownloadsURL(for: file.original_name)
+    private func autoSaveFromPhone(_ file: CurrentFile) {
+        showStatus("Receiving \(file.originalName)…")
+        let dest = uniqueDownloadsURL(for: file.originalName)
         Task {
             do {
                 try await supabase.downloadCurrent(to: dest)
-                let clipped = PasteboardCopier.copy(fileURL: dest, mime: file.mime_type)
+                let clipped = PasteboardCopier.copy(fileURL: dest, mime: file.mimeType)
                 await MainActor.run {
                     let suffix = clipped ? " · copied to clipboard" : ""
                     self.showStatus("Saved \(dest.lastPathComponent) to Downloads\(suffix)")
                     Notifier.show(
                         title: "New file from phone",
-                        body: "\(dest.lastPathComponent) · \(humanSize(file.size_bytes)) — Downloads\(suffix)"
+                        body: "\(dest.lastPathComponent) · \(humanSize(file.sizeBytes)) — Downloads\(suffix)"
                     )
                 }
             } catch {
@@ -73,11 +73,11 @@ final class MenuBarController: NSObject {
         var candidate = dir.appendingPathComponent(name)
         let stem = candidate.deletingPathExtension().lastPathComponent
         let ext = candidate.pathExtension
-        var i = 1
+        var copyNumber = 1
         while FileManager.default.fileExists(atPath: candidate.path) {
-            let next = ext.isEmpty ? "\(stem) (\(i))" : "\(stem) (\(i)).\(ext)"
+            let next = ext.isEmpty ? "\(stem) (\(copyNumber))" : "\(stem) (\(copyNumber)).\(ext)"
             candidate = dir.appendingPathComponent(next)
-            i += 1
+            copyNumber += 1
         }
         return candidate
     }
@@ -90,9 +90,9 @@ final class MenuBarController: NSObject {
     /// Records a one-line status string shown at the top of the menu. This
     /// channel always works, even when the user has denied notifications.
     func showStatus(_ text: String) {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm:ss"
-        lastStatus = "\(f.string(from: Date())) — \(text)"
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm:ss"
+        lastStatus = "\(formatter.string(from: Date())) — \(text)"
         rebuildMenu()
     }
 
@@ -112,27 +112,27 @@ final class MenuBarController: NSObject {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        if let s = lastStatus {
-            let it = NSMenuItem(title: s, action: nil, keyEquivalent: "")
-            it.isEnabled = false
-            menu.addItem(it)
+        if let status = lastStatus {
+            let statusLine = NSMenuItem(title: status, action: nil, keyEquivalent: "")
+            statusLine.isEnabled = false
+            menu.addItem(statusLine)
             menu.addItem(.separator())
         }
 
-        if let f = current {
-            let title = NSMenuItem(title: f.original_name, action: nil, keyEquivalent: "")
+        if let file = current {
+            let title = NSMenuItem(title: file.originalName, action: nil, keyEquivalent: "")
             title.isEnabled = false
             menu.addItem(title)
 
-            let sub = "\(humanSize(f.size_bytes)) · from \(f.uploaded_from)"
+            let sub = "\(humanSize(file.sizeBytes)) · from \(file.uploadedFrom)"
             let subItem = NSMenuItem(title: sub, action: nil, keyEquivalent: "")
             subItem.isEnabled = false
             menu.addItem(subItem)
 
             menu.addItem(.separator())
-            menu.addItem(item("Save to Downloads", #selector(saveToDownloads)))
-            menu.addItem(item("Save as…", #selector(saveAs)))
-            menu.addItem(item("Copy share link", #selector(copyShareLink)))
+            menu.addItem(actionItem("Save to Downloads", #selector(saveToDownloads)))
+            menu.addItem(actionItem("Save as…", #selector(saveAs)))
+            menu.addItem(actionItem("Copy share link", #selector(copyShareLink)))
         } else {
             let empty = NSMenuItem(title: "No file yet", action: nil, keyEquivalent: "")
             empty.isEnabled = false
@@ -160,17 +160,17 @@ final class MenuBarController: NSObject {
                               keyEquivalent: "q")
         menu.addItem(quit)
 
-        for it in menu.items where it.target == nil && it.action != nil
-            && it.action != #selector(NSApplication.terminate(_:)) {
-            it.target = self
+        for menuItem in menu.items where menuItem.target == nil && menuItem.action != nil
+            && menuItem.action != #selector(NSApplication.terminate(_:)) {
+            menuItem.target = self
         }
         statusItem.menu = menu
     }
 
-    private func item(_ title: String, _ sel: Selector) -> NSMenuItem {
-        let it = NSMenuItem(title: title, action: sel, keyEquivalent: "")
-        it.target = self
-        return it
+    private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
+        let menuItem = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        menuItem.target = self
+        return menuItem
     }
 
     // MARK: Actions
@@ -180,10 +180,10 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func saveToDownloads() {
-        guard let f = current else { return }
+        guard let file = current else { return }
         let dest = FileManager.default
             .urls(for: .downloadsDirectory, in: .userDomainMask).first!
-            .appendingPathComponent(f.original_name)
+            .appendingPathComponent(file.originalName)
         Task {
             do {
                 try await supabase.downloadCurrent(to: dest)
@@ -195,9 +195,9 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func saveAs() {
-        guard let f = current else { return }
+        guard let file = current else { return }
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = f.original_name
+        panel.nameFieldStringValue = file.originalName
         panel.canCreateDirectories = true
         NSApp.activate(ignoringOtherApps: true)
         panel.begin { resp in
@@ -225,10 +225,10 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func copyShareLink() {
-        guard let f = current else { return }
+        guard let file = current else { return }
         Task {
             do {
-                let url = try await supabase.signedDownloadURL(for: f.storage_path, expiresIn: 3600)
+                let url = try await supabase.signedDownloadURL(for: file.storagePath, expiresIn: 3600)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(url.absoluteString, forType: .string)
                 Notifier.show(title: "Mox", body: "Share link copied (1 h)")
@@ -262,8 +262,8 @@ enum Notifier {
 }
 
 func humanSize(_ bytes: Int64) -> String {
-    let f = ByteCountFormatter()
-    f.allowedUnits = [.useKB, .useMB, .useGB]
-    f.countStyle = .file
-    return f.string(fromByteCount: bytes)
+    let formatter = ByteCountFormatter()
+    formatter.allowedUnits = [.useKB, .useMB, .useGB]
+    formatter.countStyle = .file
+    return formatter.string(fromByteCount: bytes)
 }

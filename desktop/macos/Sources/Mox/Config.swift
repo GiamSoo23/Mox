@@ -28,7 +28,7 @@ struct Config {
     /// Look for a .env in (1) $MOX_ENV, (2) ~/.config/mox/.env, (3) cwd, (4) next to the binary.
     private static func loadEnv() -> [String: String] {
         var merged: [String: String] = [:]
-        for (k, v) in ProcessInfo.processInfo.environment { merged[k] = v }
+        for (key, value) in ProcessInfo.processInfo.environment { merged[key] = value }
 
         let candidates: [String] = [
             ProcessInfo.processInfo.environment["MOX_ENV"],
@@ -44,11 +44,11 @@ struct Config {
             for raw in text.split(whereSeparator: \.isNewline) {
                 let line = raw.trimmingCharacters(in: .whitespaces)
                 if line.isEmpty || line.hasPrefix("#") { continue }
-                guard let eq = line.firstIndex(of: "=") else { continue }
-                let k = String(line[..<eq]).trimmingCharacters(in: .whitespaces)
-                var v = String(line[line.index(after: eq)...]).trimmingCharacters(in: .whitespaces)
-                if v.hasPrefix("\""), v.hasSuffix("\"") { v = String(v.dropFirst().dropLast()) }
-                if merged[k] == nil { merged[k] = v }
+                guard let separator = line.firstIndex(of: "=") else { continue }
+                let key = String(line[..<separator]).trimmingCharacters(in: .whitespaces)
+                var value = String(line[line.index(after: separator)...]).trimmingCharacters(in: .whitespaces)
+                if value.hasPrefix("\""), value.hasSuffix("\"") { value = String(value.dropFirst().dropLast()) }
+                if merged[key] == nil { merged[key] = value }
             }
         }
         return merged
@@ -59,7 +59,7 @@ enum ConfigError: LocalizedError {
     case missing(String)
     var errorDescription: String? {
         switch self {
-        case .missing(let k): return "Missing \(k). Copy .env.example to .env and fill it in."
+        case .missing(let key): return "Missing \(key). Copy .env.example to .env and fill it in."
         }
     }
 }

@@ -3,12 +3,16 @@ import Carbon
 
 /// A global hotkey description (modifiers + virtual keycode).
 struct HotKeyCombo {
+    // Cases are named after the letter they type, so single-letter names are
+    // the clearest option here.
+    // swiftlint:disable identifier_name
     enum Key: UInt32 {
         case a = 0x00, s = 0x01, d = 0x02, f = 0x03, h = 0x04, g = 0x05, z = 0x06, x = 0x07
         case c = 0x08, v = 0x09, b = 0x0B, q = 0x0C, w = 0x0D, e = 0x0E, r = 0x0F, y = 0x10
         case t = 0x11, o = 0x1F, u = 0x20, i = 0x22, p = 0x23, l = 0x25, j = 0x26, k = 0x28
         case n = 0x2D, m = 0x2E
     }
+    // swiftlint:enable identifier_name
     struct Modifiers: OptionSet {
         let rawValue: UInt32
         static let command = Modifiers(rawValue: UInt32(cmdKey))
@@ -32,19 +36,19 @@ struct HotKeyCombo {
             default:                        keyTok = String(tok)
             }
         }
-        guard let t = keyTok, t.count == 1,
-              let key = Key.allByLetter[t] else { return nil }
+        guard let letter = keyTok, letter.count == 1,
+              let key = Key.allByLetter[letter] else { return nil }
         return HotKeyCombo(key: key, modifiers: mods)
     }
 
     var human: String {
-        var s = ""
-        if modifiers.contains(.control) { s += "⌃" }
-        if modifiers.contains(.option)  { s += "⌥" }
-        if modifiers.contains(.shift)   { s += "⇧" }
-        if modifiers.contains(.command) { s += "⌘" }
-        s += String(describing: key).uppercased()
-        return s
+        var symbols = ""
+        if modifiers.contains(.control) { symbols += "⌃" }
+        if modifiers.contains(.option) { symbols += "⌥" }
+        if modifiers.contains(.shift) { symbols += "⇧" }
+        if modifiers.contains(.command) { symbols += "⌘" }
+        symbols += String(describing: key).uppercased()
+        return symbols
     }
 }
 

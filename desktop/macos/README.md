@@ -59,3 +59,22 @@ the app bundle's `Resources/`):
 | `SUPABASE_ANON_KEY` | anon JWT                                     |
 | `MOX_HOTKEY`        | (optional) hotkey, default `cmd+shift+m`     |
 | `MOX_POLL_SECONDS`  | (optional) poll interval, default `5`        |
+
+## Lint
+
+The app follows [SwiftLint](https://github.com/realm/SwiftLint)'s default
+rules, configured in [.swiftlint.yml](.swiftlint.yml). CI runs it in strict
+mode, so warnings fail the build.
+
+```bash
+brew install swiftlint
+cd desktop/macos
+swiftlint lint --strict
+```
+
+With only the Xcode Command Line Tools installed (no full Xcode), SwiftLint
+can't find SourceKit. Point it at the tools first:
+
+```bash
+export TOOLCHAIN_DIR=/Library/Developer/CommandLineTools
+```
