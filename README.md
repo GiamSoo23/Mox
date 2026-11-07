@@ -110,14 +110,18 @@ HTTP surface) are in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ## Tech stack
 
-| Layer | Technology | Notes |
-|---|---|---|
-| Mac client | Swift 5.9, AppKit, SwiftPM | Menu-bar only (`LSUIElement`), **zero third-party dependencies** |
-| Mac system APIs | Carbon `RegisterEventHotKey`, `NSAppleScript`, `UserNotifications`, `SMAppService`, `NSPasteboard` | Hotkey, Finder bridge, alerts, launch at login, clipboard |
-| Android client | Kotlin, Jetpack Compose (Material 3), coroutines + `StateFlow` | minSdk 26, targetSdk 35 |
-| Android networking | OkHttp + `org.json` | No Supabase SDK, so the APK stays small |
-| Android system APIs | Share intents, `MediaStore`, `FileProvider`, notification channels | |
-| Backend | Supabase: Postgres + PostgREST + Storage | Schema, RLS and bucket defined in one idempotent [SQL file](supabase/schema.sql) |
+- **Mac client:** Swift 5.9, AppKit and SwiftPM, with **zero third-party
+  dependencies**. A menu-bar-only app (`LSUIElement`) built on system APIs:
+  Carbon `RegisterEventHotKey` for the hotkey, `NSAppleScript` for the Finder
+  selection, `UserNotifications`, `SMAppService` for launch at login, and
+  `NSPasteboard`.
+- **Android client:** Kotlin, Jetpack Compose (Material 3), coroutines and
+  `StateFlow`. Networking is OkHttp + `org.json` instead of the Supabase SDK,
+  so the APK stays small. Uses share intents, `MediaStore`, `FileProvider` and
+  notification channels. minSdk 26, targetSdk 35.
+- **Backend:** Supabase (Postgres + PostgREST + Storage). The schema, RLS
+  policies and bucket are defined in one idempotent
+  [SQL file](supabase/schema.sql).
 
 ---
 
