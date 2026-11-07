@@ -16,6 +16,12 @@ indent_size = 2
 # Two trailing spaces are a Markdown line break.
 trim_trailing_whitespace = false
 
+[*.{kt,kts}]
+# ktlint reads these. Android Studio style (100-char lines), and Compose
+# functions are PascalCase by convention.
+ktlint_code_style = android_studio
+ktlint_function_naming_ignore_when_annotated_with = Composable
+
 [*.{xml,plist}]
 indent_size = 4
 

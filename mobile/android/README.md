@@ -43,3 +43,17 @@ Mox → it uploads and replaces whatever was there before.
 
 On Android 13+, the OS will ask once for notification permission. Granting
 it is optional — Mox works either way.
+
+## Lint
+
+Kotlin style is checked with [ktlint](https://pinterest.github.io/ktlint/)
+(Android Studio code style), run through Gradle with no extra plugin. Rules
+live in the repo's [.editorconfig](../../.editorconfig).
+
+```bash
+./gradlew ktlintCheck    # report problems (also part of ./gradlew check)
+./gradlew ktlintFormat   # fix everything that can be fixed automatically
+```
+
+Gradle 9 needs JDK 17–21 to run. If your default Java is newer, point
+`JAVA_HOME` at a JDK 21 (Android Studio's bundled JBR works).

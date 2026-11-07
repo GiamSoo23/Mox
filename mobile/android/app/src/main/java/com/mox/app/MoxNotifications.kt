@@ -19,7 +19,8 @@ object MoxNotifications {
             val mgr = ctx.getSystemService(NotificationManager::class.java)
             if (mgr.getNotificationChannel(CHANNEL_ID) == null) {
                 val ch = NotificationChannel(
-                    CHANNEL_ID, CHANNEL_NAME,
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply { description = "Notifies when a file arrives from your other device" }
                 mgr.createNotificationChannel(ch)
@@ -44,7 +45,9 @@ object MoxNotifications {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         val pi = PendingIntent.getActivity(
-            ctx, name.hashCode(), copy,
+            ctx,
+            name.hashCode(),
+            copy,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         val body = if (copiedToClipboard) {
