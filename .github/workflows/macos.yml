@@ -1,0 +1,44 @@
+# Lints and builds the macOS menu-bar app on every PR that touches it.
+name: macOS
+
+on:
+  pull_request:
+    paths:
+      - "desktop/macos/**"
+      - ".editorconfig"
+      - ".github/workflows/macos.yml"
+  push:
+    branches: [main]
+    paths:
+      - "desktop/macos/**"
+      - ".editorconfig"
+      - ".github/workflows/macos.yml"
+
+# A new push to the same branch cancels the run still in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Lint and build
+    runs-on: macos-15
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop/macos
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install SwiftLint
+        run: command -v swiftlint || brew install swiftlint
+
+      - name: Lint (strict)
+        # github-actions-logging shows each violation inline on the PR diff.
+        run: swiftlint lint --strict --reporter github-actions-logging
+
+      - name: Build (release)
+        run: swift build -c release
