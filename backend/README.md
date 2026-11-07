@@ -7,8 +7,8 @@
    - **Project URL** (looks like `https://xxxx.supabase.co`)
    - **anon public key** (a long JWT)
 4. Paste those into:
-   - `mac/.env` (copy `mac/.env.example` first)
-   - `android/app/src/main/java/com/mox/app/Config.kt`
+   - `desktop/macos/.env` (copy `desktop/macos/.env.example` first)
+   - `mobile/android/app/src/main/java/com/mox/app/Config.kt`
 
 ## Schema overview
 

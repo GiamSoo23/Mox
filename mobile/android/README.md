@@ -15,12 +15,12 @@ You need the Android SDK installed (via Android Studio, or `sdkmanager`
 from the command line). Then either:
 
 ```bash
-# From the android/ directory:
+# From the mobile/android/ directory:
 ./gradlew assembleRelease     # produces app/build/outputs/apk/release/app-release.apk
 ./gradlew installDebug        # builds + installs on a connected device
 ```
 
-…or open `android/` in Android Studio and hit Run.
+…or open `mobile/android/` in Android Studio and hit Run.
 
 The release APK is **debug-signed** by default — fine for sideloading to
 your own phone. For Play distribution you'd need a real keystore (out of
