@@ -377,3 +377,35 @@ something: integration tests that never touch a real project.
 - Supabase Auth with one identity per device, instead of a shared key.
 - A native iOS app with a share extension, if the paid developer account happens.
 - A short history (the last N files) instead of a single slot.
+
+### Idea: a Mox API on Cloudflare, so the backend can be swapped
+
+*Not planned yet and not tracked as an issue. Written down so the reasoning
+isn't lost.*
+
+Today every client talks to Supabase directly. Supporting another provider
+would mean writing it four times, once per client (Swift, Kotlin, C#,
+Shortcuts). The free-plan project limit is already handled by installing
+Mox into an existing project (#40), so this isn't needed for v1.0.
+
+A different shape would put a **small Mox API in the middle**, for example
+on Cloudflare Workers, with R2 for files and D1 for the row:
+
+```
+clients ──► Mox API (Worker) ──► storage behind it (R2 + D1, Supabase, …)
+```
+
+- Clients would speak one Mox-specific API, and only the Worker would know
+  where files live. That makes the provider swappable in one place.
+- Cloudflare's free tier looks generous for this load: a few thousand
+  requests a day per device at a 5 s poll. Its current limits, and whether
+  R2 asks for a card on file, have to be checked first.
+- It adds a real backend service to the project, with its own tests and
+  deployment.
+- Cost: a server to write and maintain, a deploy step in the setup wizard,
+  and a protocol change for every client.
+
+Alternatives looked at: PocketBase (a single self-hosted executable, good
+for people with an always-on machine), Appwrite Cloud (closest to
+Supabase, but it limits free projects too), Firebase (file storage now
+needs a billing plan). Neon and Turso only store data, not files.
