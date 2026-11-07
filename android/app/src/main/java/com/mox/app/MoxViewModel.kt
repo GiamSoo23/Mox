@@ -1,8 +1,11 @@
 package com.mox.app
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.ContentValues
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -83,8 +86,20 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val ctx = getApplication<Application>()
             val uri = saveToPublicDownloads(file)
+            // Best-effort clipboard set — only succeeds if Mox is foregrounded
+            // (Android 10+ blocks background clipboard writes). The notification
+            // tap routes through CopyToClipboardActivity for the common case.
+            val clipped = withContext(Dispatchers.Main) {
+                runCatching {
+                    val clip = ClipData.newUri(ctx.contentResolver, file.originalName, uri)
+                    val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    cm.setPrimaryClip(clip)
+                    true
+                }.getOrDefault(false)
+            }
             MoxNotifications.showFileSaved(
-                ctx, file.originalName, file.sizeBytes, uri, file.mimeType
+                ctx, file.originalName, file.sizeBytes, uri, file.mimeType,
+                copiedToClipboard = clipped
             )
         } catch (e: Exception) {
             // Surface error but don't blow up state — keep last good UI.

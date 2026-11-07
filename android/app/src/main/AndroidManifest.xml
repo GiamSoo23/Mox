@@ -33,6 +33,13 @@
         </provider>
 
         <activity
+            android:name=".CopyToClipboardActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Mox.Transparent"
+            android:excludeFromRecents="true"
+            android:noHistory="true" />
+
+        <activity
             android:name=".ShareActivity"
             android:exported="true"
             android:label="Send to Mox"
