@@ -27,20 +27,35 @@ object MoxNotifications {
         }
     }
 
-    fun showFileSaved(ctx: Context, name: String, sizeBytes: Long, contentUri: Uri, mime: String?) {
+    fun showFileSaved(
+        ctx: Context,
+        name: String,
+        sizeBytes: Long,
+        contentUri: Uri,
+        mime: String?,
+        copiedToClipboard: Boolean = false
+    ) {
         ensureChannel(ctx)
-        val view = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(contentUri, mime ?: "*/*")
+        // Tap → run CopyToClipboardActivity (transparent, one-frame foreground)
+        // so setPrimaryClip succeeds under Android 10+ background restrictions.
+        val copy = Intent(ctx, CopyToClipboardActivity::class.java).apply {
+            putExtra(CopyToClipboardActivity.EXTRA_URI, contentUri)
+            putExtra(CopyToClipboardActivity.EXTRA_LABEL, name)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         val pi = PendingIntent.getActivity(
-            ctx, name.hashCode(), view,
+            ctx, name.hashCode(), copy,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
+        val body = if (copiedToClipboard) {
+            "$name · in clipboard · saved to Downloads"
+        } else {
+            "$name · tap to copy · saved to Downloads"
+        }
         val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle("New file from Mac")
-            .setContentText("$name · saved to Downloads")
+            .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pi)
