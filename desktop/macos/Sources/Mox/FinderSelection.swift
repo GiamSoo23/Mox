@@ -30,9 +30,9 @@ enum FinderSelection {
         var paths: [String] = []
         let count = result.numberOfItems
         guard count > 0 else { return paths }
-        for i in 1...count {
-            if let s = result.atIndex(i)?.stringValue, !s.isEmpty {
-                paths.append(s)
+        for index in 1...count {
+            if let path = result.atIndex(index)?.stringValue, !path.isEmpty {
+                paths.append(path)
             }
         }
         return paths

@@ -39,7 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if regStatus == noErr {
             bar.showStatus("Ready. Hotkey \(config.hotkey.human) registered.")
         } else {
-            bar.showStatus("Hotkey \(config.hotkey.human) FAILED to register (OSStatus \(regStatus)). Use menu instead.")
+            bar.showStatus("Hotkey \(config.hotkey.human) FAILED to register "
+                           + "(OSStatus \(regStatus)). Use menu instead.")
         }
 
         Task { await self.poll() }
@@ -76,9 +77,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 await MainActor.run {
                     self.menuBar?.update(current: row, notify: false)
                     self.menuBar?.tintBusy(false)
-                    self.menuBar?.showStatus("Sent \(row.original_name)")
+                    self.menuBar?.showStatus("Sent \(row.originalName)")
                     Notifier.show(title: "Sent",
-                                  body: "\(row.original_name) · \(humanSize(row.size_bytes))")
+                                  body: "\(row.originalName) · \(humanSize(row.sizeBytes))")
                 }
             } catch {
                 await MainActor.run {

@@ -1,16 +1,27 @@
 import Foundation
 
+/// The single row in `current_file`: the file currently held by Mox.
+struct CurrentFile: Decodable, Equatable {
+    let storagePath: String
+    let originalName: String
+    let mimeType: String?
+    let sizeBytes: Int64
+    let uploadedFrom: String
+    let uploadedAt: String
+
+    /// The row's JSON uses the table's snake_case column names.
+    enum CodingKeys: String, CodingKey {
+        case storagePath = "storage_path"
+        case originalName = "original_name"
+        case mimeType = "mime_type"
+        case sizeBytes = "size_bytes"
+        case uploadedFrom = "uploaded_from"
+        case uploadedAt = "uploaded_at"
+    }
+}
+
 /// Minimal Supabase REST client for Mox. Talks to Storage + PostgREST directly.
 final class SupabaseService {
-    struct CurrentFile: Decodable, Equatable {
-        let storage_path: String
-        let original_name: String
-        let mime_type: String?
-        let size_bytes: Int64
-        let uploaded_from: String
-        let uploaded_at: String
-    }
-
     private let baseURL: URL
     private let anonKey: String
     private let session: URLSession
@@ -73,11 +84,11 @@ final class SupabaseService {
         let (data, resp) = try await session.data(for: req)
         try expect2xx(resp, data)
         struct Reply: Decodable { let signedURL: String }
-        let r = try JSONDecoder().decode(Reply.self, from: data)
+        let reply = try JSONDecoder().decode(Reply.self, from: data)
         // signedURL is path-only, prefix with /storage/v1
-        let full = baseURL.appendingPathComponent("storage/v1").absoluteString + r.signedURL
-        guard let u = URL(string: full) else { throw MoxError.upload("Bad signed URL") }
-        return u
+        let full = baseURL.appendingPathComponent("storage/v1").absoluteString + reply.signedURL
+        guard let signedURL = URL(string: full) else { throw MoxError.upload("Bad signed URL") }
+        return signedURL
     }
 
     /// Downloads the current file directly to a local destination URL.
@@ -85,7 +96,7 @@ final class SupabaseService {
         guard let current = try await fetchCurrent() else {
             throw MoxError.upload("Nothing to download.")
         }
-        let signed = try await signedDownloadURL(for: current.storage_path)
+        let signed = try await signedDownloadURL(for: current.storagePath)
         let (tmp, resp) = try await session.download(from: signed)
         try expect2xx(resp, Data())
         if FileManager.default.fileExists(atPath: dest.path) {
@@ -115,8 +126,8 @@ final class SupabaseService {
         let (data, resp) = try await session.data(for: req)
         try expect2xx(resp, data)
         let rows = try JSONDecoder().decode([CurrentFile].self, from: data)
-        guard let r = rows.first else { throw MoxError.upload("No row returned.") }
-        return r
+        guard let row = rows.first else { throw MoxError.upload("No row returned.") }
+        return row
     }
 
     private func storageRequest(path: String) -> URLRequest {
@@ -163,6 +174,8 @@ final class SupabaseService {
 enum MoxError: LocalizedError {
     case upload(String)
     var errorDescription: String? {
-        switch self { case .upload(let m): return m }
+        switch self {
+        case .upload(let message): return message
+        }
     }
 }

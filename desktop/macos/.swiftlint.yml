@@ -1,0 +1,16 @@
+# SwiftLint configuration for the macOS app.
+# Run from desktop/macos/:  swiftlint lint --strict
+# (--strict turns warnings into errors; CI uses it.)
+
+included:
+  - Sources
+
+line_length:
+  warning: 120
+  error: 160
+  ignores_comments: true
+  ignores_urls: true
+
+identifier_name:
+  excluded:
+    - id
