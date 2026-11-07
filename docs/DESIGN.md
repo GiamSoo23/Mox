@@ -1,0 +1,378 @@
+# Mox v2: design
+
+**Status:** draft · **Last updated:** 2026-11-07 · **Plan:** [ROADMAP.md](ROADMAP.md)
+
+Mox v1 is a personal tool. One Mac and one Samsung phone share a Supabase
+project whose credentials are compiled into both apps. v2 turns it into an
+**open-source, self-hosted relay**. Anyone can pair **any desktop (macOS or
+Windows) with any phone (Android or iPhone)** through their own free Supabase
+project, using the same downloadable binaries, with no recompiling and no paid
+developer accounts.
+
+**Delivery order:** Mac ↔ Android first (v1.0), because that pair already
+exists. Then iPhone (v1.1), then Windows (v1.2). See [ROADMAP.md](ROADMAP.md).
+
+---
+
+## 1. Why v2
+
+| Trigger | Consequence |
+|---|---|
+| The author switched from Android to iPhone. | The v1 pair (Mac ↔ Android) no longer covers their own use. The tool only stays useful if it is general. |
+| Credentials are compiled into the Android app. | Nobody else can use a prebuilt APK, and the key sits in git history. |
+| Supabase retires the legacy `anon` / `service_role` keys at the end of 2026. | Clients must move to publishable keys (`sb_publishable_…`). |
+| The Supabase free plan caps uploads at 50 MB per file. | The 500 MB limit in v1 is wrong for free projects and has to change. |
+
+## 2. Goals and non-goals
+
+**Goals**
+
+- Every desktop can pair with every phone: macOS or Windows ↔ Android or iPhone.
+- **Bring your own backend:** each user owns a free Supabase project. Mox
+  runs no servers.
+- **Same binaries for everyone.** Configuration happens at runtime, never at
+  build time.
+- **Pairing by QR:** the desktop shows a code, the phone scans it, done.
+- **Free to distribute:** GitHub Releases, no Apple Developer Program or
+  Play Store fees.
+- Keep v1's simplicity: one slot, the newest upload wins. The slot holds a
+  single file or a **bundle of several files** (§9).
+
+**Non-goals (for now)**
+
+- User accounts, sharing between different people, or multi-tenant hosting.
+- App Store or Play Store distribution, signed or notarized binaries.
+- Uploads over 50 MB (that's the free-plan limit, for a whole bundle too),
+  or a file history.
+- Phone ↔ phone or desktop ↔ desktop. They may just work, but they aren't
+  designed for or tested.
+
+## 3. Platform matrix
+
+| Platform | Client form | Send | Receive | Distribution | Status |
+|---|---|---|---|---|---|
+| **macOS** | Native menu-bar app (Swift, AppKit) | Global hotkey on the Finder selection, menu item | Automatic: saved to `~/Downloads`, copied to the clipboard, notification | `.zip` on GitHub Releases. Unsigned, so first launch is right-click → Open | Exists (v1) |
+| **Windows** | Native tray app (C#, .NET 8) | Global hotkey on the Explorer selection, **Send to → Mox**, `mox send <file>` | Automatic: saved to Downloads, copied to the clipboard, toast notification | `.zip` on GitHub Releases. Unsigned, so SmartScreen warns once | New |
+| **Android** | Native app (Kotlin, Compose) | Share sheet → Mox | Automatic while the app is open: photos and videos to the gallery, everything else to Downloads, notification, tap to copy | APK on GitHub Releases (sideload) | Exists (v1) |
+| **iPhone** | **Apple Shortcuts** (see §4) | Share sheet → "Send to Mox" shortcut | On demand: run "Get from Mox" (widget, Back Tap or Siri), saves to Files or Photos and copies to the clipboard | iCloud shortcut links + signed `.shortcut` files on Releases | New |
+
+macOS ↔ iPhone falls out of the matrix for free. AirDrop already covers that
+pair, so it isn't a priority, but nothing blocks it.
+
+## 4. Decision: iPhone support through Shortcuts, not a native app
+
+Without a paid Apple Developer account, a native iOS app can only be
+installed from Xcode with a free personal team. The install stops working
+after **7 days**, needs a Mac with Xcode for every reinstall, and can't go
+through TestFlight. That isn't something other people can download.
+
+| Option | Send (share sheet) | Receive | Free to distribute | Verdict |
+|---|:-:|:-:|:-:|---|
+| Native SwiftUI app + share extension | ✓ | ✓ background-limited | ✗ (7-day sideload) | Future, if the paid account happens |
+| PWA (web app on the home screen) | ✗ iOS Safari doesn't support the Web Share Target API | ✓ | ✓ | Rejected: can't receive shares |
+| **Apple Shortcuts** | ✓ shortcuts can appear in the share sheet | ✓ on demand | ✓ iCloud links | **Chosen** |
+
+Shortcuts covers the whole protocol with built-in actions: *Get Contents of
+URL* handles custom headers, JSON and file bodies, and there are actions for
+saving files and setting the clipboard. Three shortcuts ship with Mox:
+
+1. **Mox Setup:** receives the pairing payload (§7.2) and saves the
+   configuration to a file in iCloud Drive / Shortcuts.
+2. **Send to Mox:** a share-sheet shortcut that uploads the file and upserts
+   the row.
+3. **Get from Mox:** fetches the current file, saves it, and copies it.
+
+**What we give up:** an iPhone can't receive in the background or get a
+notification when a file arrives. You pull the file when you want it, for
+example with a double tap on the back of the phone (Back Tap), a home-screen
+widget or Siri. **Experiment for v1.1:** [ntfy](https://ntfy.sh), a free push
+service with an iOS app, could deliver a notification when the desktop
+uploads, and tapping it would run "Get from Mox". That would give iPhone
+real notifications without a paid account. It's unverified, so it's listed
+as risk #8. The
+shortcuts are built in the Shortcuts app rather than written as code, so the
+repo versions them as signed exports (`shortcuts sign`) plus a written spec
+of each action.
+
+## 5. Decision: a native app on each desktop OS, not one cross-platform app
+
+| Option | For | Against |
+|---|---|---|
+| **Native per OS (Swift + C#)** | The Mac app already exists and works. Every OS hook (hotkey, file-manager selection, clipboard, launch at login, *Send to*) is first-class. Small binaries. | Features are written twice, in two languages. |
+| Tauri (Rust + web UI) | One desktop codebase, small binaries. | Throws away the working Swift app. The Finder and Explorer selection still need native code per OS. |
+| Electron | One codebase, mature ecosystem. | Over 100 MB for a tray icon, and the same native-glue problem. |
+| Avalonia / .NET MAUI | One C# codebase. | Means rewriting the Mac app, and menu-bar integration on macOS is weaker. |
+
+**Chosen: native per OS.** What the clients share is small and stable: five
+HTTP calls, one row, one pairing payload. v1 already showed that two native
+clients can follow one written contract. v2 makes that contract explicit
+(§8) and **enforces it with shared test fixtures** that every client's test
+suite must pass, so the duplication can't drift.
+
+## 6. Architecture
+
+```mermaid
+flowchart LR
+    subgraph DESK["Desktop apps"]
+        direction TB
+        MAC["macOS<br/>Swift menu-bar app"]
+        WIN["Windows<br/>C# tray app"]
+    end
+
+    subgraph SUPA["User's own Supabase project"]
+        direction TB
+        PG[("Postgres<br/>current_file · mox_meta")]
+        ST[("Storage<br/>private bucket 'mox'")]
+    end
+
+    subgraph PHONE["Phones"]
+        direction TB
+        AND["Android<br/>Kotlin app"]
+        IOS["iPhone<br/>Apple Shortcuts"]
+    end
+
+    PAIR["Pairing page<br/>static site on GitHub Pages"]
+
+    DESK <-- "send / poll / download" --> SUPA
+    SUPA <-- "send / poll or pull / download" --> PHONE
+    DESK -. "QR code" .-> PAIR
+    PAIR -. "deep link with config" .-> PHONE
+```
+
+The backend stays deliberately dumb. Each client talks to Supabase directly
+over REST, as in v1. The new pieces are the **setup wizard** in the desktop
+apps, which creates and prepares the Supabase project, and the **pairing
+page**, which takes a scanned QR and hands its configuration to the right
+phone client.
+
+## 7. Onboarding
+
+### 7.1 Setup wizard (desktop, first launch)
+
+```mermaid
+flowchart TD
+    A["First launch"] --> B{"Do you already have<br/>a Supabase project?"}
+    B -- "Yes" --> C["Paste project URL +<br/>publishable key"]
+    B -- "No, create one" --> D["Paste a Supabase<br/>personal access token"]
+    D --> E["Create project<br/>POST /v1/projects"]
+    E --> F["Wait until healthy<br/>(a few minutes)"]
+    F --> G["Apply Mox migrations"]
+    G --> H["Fetch publishable key"]
+    C --> I{"Schema present and<br/>up to date?"}
+    I -- "No" --> G
+    I -- "Yes" --> J
+    H --> J["Save config in Keychain /<br/>Windows Credential store"]
+    J --> K["Show 'Pair a phone' QR"]
+```
+
+- The personal access token is **used once and never stored**. The wizard
+  suggests a scoped token over a classic one.
+- The free plan allows a limited number of active projects. If creating one
+  fails, the wizard falls back to "use an existing project".
+- Either path ends with the same check: read `mox_meta.schema_version` and
+  migrate if it's missing or old. Running it again is harmless.
+
+### 7.2 Pairing a phone
+
+The desktop app encodes its configuration as a link to the static pairing
+page. The configuration goes in the **URL fragment**, which browsers never
+send to a server:
+
+```
+https://<owner>.github.io/Mox/pair/#v=1&u=<project-url>&k=<publishable-key>&n=<desktop-name>
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as You
+    participant D as Desktop app
+    participant C as Phone camera
+    participant P as Pairing page
+    participant A as Mox on the phone
+
+    U->>D: Menu → "Pair a phone"
+    D-->>U: QR code with the pairing link
+    U->>C: Point camera at the QR
+    C->>P: Open link (fragment stays on the device)
+    P->>P: Detect Android or iOS
+    alt Mox not installed yet
+        P-->>U: Download APK, or add the shortcuts
+    end
+    U->>P: Tap "Finish pairing"
+    P->>A: Android: mox://pair?… · iPhone: shortcuts://run-shortcut?name=Mox%20Setup&input=text&text=…
+    A->>A: Validate payload, store config, create device id
+    A-->>U: "Paired with Gregory's MacBook"
+```
+
+- The phone app needs no camera code. The system camera reads the QR and
+  opens the page. If that doesn't work, you can paste the link by hand.
+- **The QR is a secret.** Whoever scans it can read and replace your current
+  file. The desktop only shows it on request. "Re-key" in the wizard rotates
+  the publishable key, and then every device pairs again.
+
+## 8. Backend v2 and the shared protocol
+
+### 8.1 Schema
+
+```mermaid
+erDiagram
+    CURRENT_FILE ||--|| STORAGE_OBJECT : "always the object named current"
+    CURRENT_FILE {
+        int id PK "always 1"
+        text original_name "shown to the user"
+        text mime_type "nullable"
+        bigint size_bytes "1 to 50 MB"
+        text kind "file or bundle"
+        int item_count "1 for a file, 2+ for a bundle"
+        text source_platform "macos, windows, android, ios"
+        uuid source_device_id "set at pairing"
+        timestamptz uploaded_at "default now()"
+    }
+    STORAGE_OBJECT {
+        text bucket_id "mox (private, 50 MB cap)"
+        text name "current"
+    }
+    MOX_META {
+        int id PK "always 1"
+        int schema_version "checked by every client"
+    }
+```
+
+Changes from v1, each one a migration managed by the Supabase CLI:
+
+| Change | Why |
+|---|---|
+| `uploaded_from ('mac','android')` becomes `source_platform` + `source_device_id` | Four platforms, and possibly several devices on one project. Clients skip **their own device's** uploads, not their whole platform's. |
+| The object is always named `current` (no extension) | Fixes the v1 bug where a new extension left the old `current.<ext>` behind. The extension comes from `original_name` when saving. |
+| 50 MB limit on the bucket and in a `CHECK` | Matches the free plan. |
+| New `kind` (`file` / `bundle`) and `item_count` | Multi-file sending (§9). Only bundles are unpacked, so a `.zip` you send on purpose arrives as a `.zip`. |
+| New `mox_meta.schema_version` | Clients refuse to run against an incompatible schema and say why. |
+| `schema.sql` becomes `supabase/migrations/*.sql` | Versioned, testable with `supabase test db` (pgTAP), and the wizard can apply it. |
+
+**Inactivity pause:** free Supabase projects pause after a week with no
+activity. In practice, desktop clients poll every 5 s while they're running,
+which keeps the project active. The author has gone over a week without
+sending anything in v1 with no problem. The README documents this. A keepalive
+job is a fallback we can add, not part of the plan.
+
+### 8.2 Protocol
+
+`shared/PROTOCOL.md` becomes the single contract for all four clients. It
+contains:
+
+- the five REST calls (read row, upload object, upsert row, sign URL,
+  download) with exact headers,
+- the row's JSON format and what each field allows,
+- the pairing payload v1 (§7.2), with rules for validating it,
+- `shared/fixtures/*.json`: valid and invalid rows and payloads. **The test
+  suites in Swift, Kotlin and C# all load the same files.**
+
+Keys: clients only ever hold the **publishable** key. The secret key never
+leaves the Supabase dashboard.
+
+## 9. Multi-file bundles
+
+Sharing 5 photos should produce 5 photos on the other side, not one file.
+The slot model stays the same: **a multi-file send is still one upload and
+one object.**
+
+```mermaid
+flowchart LR
+    A["Select 5 photos<br/>(Finder or share sheet)"] --> B["Pack into an uncompressed zip<br/>kind = bundle, item_count = 5"]
+    B --> C[("One object<br/>in the slot")]
+    C --> D{"kind?"}
+    D -- "bundle" --> E["Unpack safely,<br/>save the 5 originals"]
+    D -- "file" --> F["Save as is<br/>(even if it's a .zip)"]
+```
+
+**Sending.** The Mac uses every item selected in Finder (v1 only used the
+first). A folder becomes a bundle that keeps its structure, which removes
+v1's "zip it first" rule. Android takes every URI from `ACTION_SEND_MULTIPLE`.
+A single file is still sent as is.
+
+**Receiving.**
+
+| Platform | One file | A bundle |
+|---|---|---|
+| macOS | `~/Downloads`, as in v1 | A folder `~/Downloads/Mox – 5 files – 14.32/`. All files go on the pasteboard, so `⌘V` in Finder pastes all of them |
+| Android | Photos and videos go to the gallery (`Pictures/Mox`), everything else to `Downloads` | Same rules for each file, notification "5 files from your Mac" |
+| iPhone (v1.1) | The shortcut saves to Photos or Files | *Extract Archive* action, then the same |
+| Windows (v1.2) | Downloads | A folder in Downloads, all files on the clipboard |
+
+**Format and safety rules** (in `shared/`, with fixtures every client tests against):
+
+- **Zip with no compression ("store").** Photos and videos are already
+  compressed, so compressing again only costs time. UTF-8 file names.
+- **No new dependencies:** `ditto` on macOS, `java.util.zip` on Android,
+  `System.IO.Compression` on Windows, *Make / Extract Archive* in Shortcuts.
+- **The 50 MB limit applies to the whole bundle.** The sender checks it
+  before packing and says which files make it too big.
+- **Unpacking is defensive.** Entries with absolute paths or `..` are
+  rejected (zip slip). There are caps on the number of entries and the total
+  unpacked size, and names that collide get `(1)`, `(2)` added.
+
+**Alternative considered:** one storage object per file plus a list of them
+in the row. It breaks the one-object invariant, needs a bigger schema change
+and makes cleanup harder. Rejected in favor of the zip.
+
+## 10. Repository layout (v2)
+
+```
+mox/
+├── backend/            Supabase CLI project: config, migrations, pgTAP tests
+├── shared/             PROTOCOL.md, pairing spec, JSON fixtures
+├── desktop/
+│   ├── macos/          Swift package: MoxCore library + Mox app + tests
+│   └── windows/        .NET 8 solution: Mox.Core + Mox.Tray + tests
+├── mobile/
+│   ├── android/        Gradle project
+│   └── ios-shortcuts/  signed .shortcut exports + action-by-action spec
+├── web/pair/           static pairing page (GitHub Pages)
+├── docs/               DESIGN.md, ROADMAP.md, ARCHITECTURE.md, guides
+└── .github/workflows/  CI per area + release pipeline
+```
+
+The move from today's `mac/`, `android/` and `supabase/` happens in one
+`git mv` commit, so file history is kept.
+
+## 11. Quality, testing and delivery
+
+| Layer | Tooling | Runs in CI |
+|---|---|---|
+| Backend | pgTAP through `supabase test db`: singleton constraint, checks, RLS policies | ✓ Ubuntu, Supabase in Docker |
+| Contract | Integration tests against a local Supabase: upload → upsert → read → sign → download | ✓ Ubuntu, Docker |
+| macOS | XCTest on `MoxCore`: hotkey parser, config, payload, fixtures; network tests use a mock `URLProtocol` | ✓ macOS runner |
+| Android | JUnit on the JVM: parsing, sanitizing, payload, fixtures; `MoxBackend` interface with a fake | ✓ Ubuntu |
+| Windows | xUnit on `Mox.Core`: same fixtures | ✓ Windows runner |
+| iPhone | Manual test checklist (Shortcuts can't be unit-tested) | — |
+| Lint / format | SwiftLint · ktlint · `dotnet format` | ✓ on every PR |
+| Release | On a `v*` tag: build the APK, Mox.app `.zip`, Windows `.zip` and signed shortcuts, attach them with checksums | ✓ |
+| Pairing page | Deployed to GitHub Pages on merge to `main` | ✓ |
+
+Using Docker for the backend is a deliberate choice. The apps are native, so
+containerizing them would add nothing. A disposable Supabase stack does add
+something: integration tests that never touch a real project.
+
+## 12. Risks and open questions
+
+| # | Risk / question | Plan |
+|---|---|---|
+| 1 | Windows development and testing from a Mac | CI builds and unit-tests on `windows-latest`. Manual testing needs a Windows PC or VM (UTM or Parallels with Windows on ARM). |
+| 2 | Exactly which permissions a scoped token needs to create a project | Try it with a test account before building the wizard. A classic token is the fallback. |
+| 3 | Applying migrations through the Management API (SQL query endpoint) | Same: try it first. Fallback: the user pastes the SQL into the dashboard. |
+| 4 | How Shortcuts handles 50 MB uploads and fixed request headers | Try both early in the iPhone milestone. |
+| 5 | Warnings for unsigned binaries (Gatekeeper, SmartScreen, unknown APK sources) | Step-by-step instructions with screenshots in the install guide. |
+| 6 | The publishable key travels inside the QR | Show the QR only on request, document it, and offer Re-key. |
+| 7 | Android receives only while the app is open | Keep it for v2. WorkManager or push is future work. |
+| 8 | iPhone notifications through ntfy (§4) are unverified: reliability, and whether tapping can launch a shortcut | Try it before v1.1. If it doesn't work, iPhone stays pull-only. |
+
+## 13. Later
+
+- **End-to-end encryption.** The pairing payload would carry a symmetric
+  key, and clients would encrypt before uploading, so Supabase only ever
+  stores ciphertext. Shortcuts has no AES action, which blocks this for
+  iPhone.
+- Supabase Auth with one identity per device, instead of a shared key.
+- A native iOS app with a share extension, if the paid developer account happens.
+- A short history (the last N files) instead of a single slot.
