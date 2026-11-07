@@ -2,6 +2,8 @@
 
 **One file at a time, between your Mac and your Android phone.**
 
+[![macOS CI](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml)
+[![Android CI](https://github.com/GiamSoo23/Mox/actions/workflows/android.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/android.yml)
 ![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)
 ![macOS](https://img.shields.io/badge/macOS-13%2B-000000?logo=apple&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7F52FF?logo=kotlin&logoColor=white)

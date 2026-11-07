@@ -56,7 +56,7 @@ roadmap.
 - **Merge with "Rebase and merge"** (or a merge commit), **not squash**.
   Squashing turns each PR into one commit and hides the steps.
 - From milestone 2 onward, **every PR has to pass CI** before it's merged.
-- Each finished milestone gets a tag (`v0.2.0` … `v1.0.0`).
+- Each finished milestone gets a tag: M1 = `v0.1.0`, M2 = `v0.2.0` … M8 = `v1.0.0`.
 
 ---
 
