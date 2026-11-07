@@ -147,6 +147,15 @@ final class MenuBarController: NSObject {
         menu.addItem(send)
         menu.addItem(.separator())
 
+        if LoginItem.isAvailable {
+            let launch = NSMenuItem(title: "Launch at Login",
+                                    action: #selector(toggleLaunchAtLogin),
+                                    keyEquivalent: "")
+            launch.target = self
+            launch.state = LoginItem.isEnabled ? .on : .off
+            menu.addItem(launch)
+        }
+
         let quit = NSMenuItem(title: "Quit Mox", action: #selector(NSApplication.terminate(_:)),
                               keyEquivalent: "q")
         menu.addItem(quit)
@@ -202,6 +211,17 @@ final class MenuBarController: NSObject {
                 }
             }
         }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        let next = !LoginItem.isEnabled
+        switch LoginItem.setEnabled(next) {
+        case .success:
+            showStatus(next ? "Launch at Login enabled" : "Launch at Login disabled")
+        case .failure(let err):
+            showError("Launch at Login: \(err.localizedDescription)")
+        }
+        rebuildMenu()
     }
 
     @objc private func copyShareLink() {
