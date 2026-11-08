@@ -46,7 +46,7 @@ data class CurrentFile(
 class SupabaseRepo(
     private val baseUrl: String = Config.SUPABASE_URL.trimEnd('/'),
     private val key: String = Config.SUPABASE_KEY
-) {
+) : MoxBackend {
     private val bucket = "mox"
     private val client = OkHttpClient.Builder()
         .callTimeout(10, TimeUnit.MINUTES)
@@ -54,7 +54,7 @@ class SupabaseRepo(
         .writeTimeout(10, TimeUnit.MINUTES)
         .build()
 
-    suspend fun fetchCurrent(): CurrentFile? = withContext(Dispatchers.IO) {
+    override suspend fun fetchCurrent(): CurrentFile? = withContext(Dispatchers.IO) {
         val req = Request.Builder()
             .url("$baseUrl/rest/v1/current_file?id=eq.1&select=*")
             .headers(authHeaders())
@@ -67,7 +67,7 @@ class SupabaseRepo(
         }
     }
 
-    suspend fun uploadFromContentUri(
+    override suspend fun uploadFromContentUri(
         resolver: ContentResolver,
         uri: Uri,
         displayName: String,
@@ -132,7 +132,7 @@ class SupabaseRepo(
         }
     }
 
-    suspend fun signedDownloadUrl(path: String, expiresIn: Int = 600): String =
+    override suspend fun signedDownloadUrl(path: String, expiresIn: Int): String =
         withContext(Dispatchers.IO) {
             val body = JSONObject().put("expiresIn", expiresIn).toString()
                 .toRequestBody("application/json".toMediaType())
@@ -148,11 +148,13 @@ class SupabaseRepo(
             }
         }
 
-    suspend fun downloadTo(file: File, current: CurrentFile) = withContext(Dispatchers.IO) {
-        file.outputStream().use { out -> downloadToStream(out, current) }
+    override suspend fun downloadTo(file: File, current: CurrentFile) {
+        withContext(Dispatchers.IO) {
+            file.outputStream().use { out -> downloadToStream(out, current) }
+        }
     }
 
-    suspend fun downloadToStream(out: java.io.OutputStream, current: CurrentFile) =
+    override suspend fun downloadToStream(out: java.io.OutputStream, current: CurrentFile) {
         withContext(Dispatchers.IO) {
             val url = signedDownloadUrl(current.storagePath)
             val req = Request.Builder().url(url).get().build()
@@ -161,6 +163,7 @@ class SupabaseRepo(
                 resp.body!!.byteStream().copyTo(out)
             }
         }
+    }
 
     private fun authHeaders(extra: Map<String, String> = emptyMap()) = (
         mapOf(
