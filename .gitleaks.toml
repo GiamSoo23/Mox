@@ -4,14 +4,19 @@ title = "Mox"
 [extend]
 useDefault = true
 
-# The shared test fixtures contain obviously fake credentials on purpose.
-# Both conditions must hold (AND): the file is under shared/fixtures/ AND
-# the value is one of the known fake ones. A real secret added there would
-# still be caught.
+# Test fixtures and test suites contain obviously fake credentials on
+# purpose. Both conditions must hold (AND): the file is test data or a test
+# AND the value is one of the known fake ones. A real secret added there
+# would still be caught.
 [[allowlists]]
-description = "Fake credentials in the shared test fixtures"
+description = "Known fake credentials in test data and tests"
 condition = "AND"
-paths = ['''^shared/fixtures/''']
+paths = [
+  '''^shared/fixtures/''',
+  '''^desktop/macos/Tests/''',
+  '''^mobile/android/app/src/test/''',
+  '''^web/.*\.test\.js$''',
+]
 regexes = [
   '''correct-horse-battery-staple-42''',
   '''EXAMPLEKEY''',
