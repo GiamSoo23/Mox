@@ -20,8 +20,9 @@ it isn't.
 | M1 · Baseline and open source | ✅ done, tag [`v0.1.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.1.0) |
 | M2 · Quality gates and CI | ✅ done, tag [`v0.2.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.2.0) |
 | M3 · Backend v2 | ✅ done, tag [`v0.3.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.3.0); migrations applied to the live project |
-| M4 · Runtime config and security | in progress |
-| M5–M8, v1.1, v1.2 | planned |
+| M4 · Runtime config and security | in progress: v1 cleanup (#49) and contract tests (#13) left |
+| M5 · QR pairing | ✅ done (pairing works end to end on a real phone); first release `v0.5.0` pending |
+| M6–M8, v1.1, v1.2 | planned |
 
 For finished milestones, the tables below show the **original plan**. The
 real commits are in the history, and what changed along the way is noted

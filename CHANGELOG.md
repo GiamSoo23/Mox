@@ -9,6 +9,19 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 ## [Unreleased]
 
 ### Added
+- **Pairing by QR code.** The Mac shows "Pair a Phone…" with a QR code (kept
+  out of screenshots); the phone's camera opens the pairing page, which
+  offers the APK and hands the settings to the app. No keys to type
+  ([#14](https://github.com/GiamSoo23/Mox/issues/14), [#15](https://github.com/GiamSoo23/Mox/issues/15), [#16](https://github.com/GiamSoo23/Mox/issues/16), [#17](https://github.com/GiamSoo23/Mox/issues/17)).
+- The pairing page, live on GitHub Pages at
+  <https://giamsoo23.github.io/Mox/pair/> ([#16](https://github.com/GiamSoo23/Mox/issues/16)).
+- A release workflow that builds a signed APK and the Mac app on a version
+  tag ([#24](https://github.com/GiamSoo23/Mox/issues/24)).
+- A testable `MoxCore` module for the Mac app, with XCTest suites run in CI
+  ([#10](https://github.com/GiamSoo23/Mox/issues/10)). Mac, Android, the pairing page and the database all test
+  against the same shared fixtures.
+- A "Privacy and your data" section: Mox has no servers, and each user owns
+  their data ([#66](https://github.com/GiamSoo23/Mox/issues/66)).
 - Android saves received photos and videos to the Camera folder, so they
   show up in the gallery ([#43](https://github.com/GiamSoo23/Mox/issues/43)).
 - First Android unit tests (16), run by CI on every PR ([#12](https://github.com/GiamSoo23/Mox/issues/12)).
@@ -16,10 +29,20 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 - This changelog and a bug log ([#52](https://github.com/GiamSoo23/Mox/issues/52)).
 
 ### Changed
-- Android reads its Supabase credentials from `local.properties` instead
-  of source code ([#58](https://github.com/GiamSoo23/Mox/pull/58)).
+- **Both apps speak schema v2**: they sign in as the Mox user, use the
+  owner-only `mox` schema, store the file as `current`, identify each
+  device, and refuse files over 50 MB before uploading
+  ([#11](https://github.com/GiamSoo23/Mox/issues/11), [#12](https://github.com/GiamSoo23/Mox/issues/12), [#35](https://github.com/GiamSoo23/Mox/issues/35)).
+- Settings live in the macOS Keychain and, on Android, are encrypted with
+  an Android Keystore key. Android has no build-time credentials anymore;
+  every APK is the same and is configured by pairing.
+- A file sent while the receiving device was off or closed now arrives the
+  next time it checks (the last handled file is remembered across
+  launches).
 
 ### Fixed
+- The first file sent after pairing (or after a first launch) on an empty
+  slot wasn't downloaded ([#71](https://github.com/GiamSoo23/Mox/issues/71)).
 - Android read a null `mime_type` as the string `"null"` ([#56](https://github.com/GiamSoo23/Mox/issues/56)).
 
 ### Security
