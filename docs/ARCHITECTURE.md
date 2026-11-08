@@ -16,7 +16,9 @@ the state machines behind the UI.
 
 ## Data model
 
-The backend is defined entirely in [backend/schema.sql](../backend/schema.sql).
+The backend is defined entirely in SQL migrations under
+[backend/supabase/migrations/](../backend/supabase/migrations/), starting with
+[the initial schema](../backend/supabase/migrations/20260526000000_initial_schema.sql).
 The script is idempotent, so it's safe to run again.
 
 ```mermaid
