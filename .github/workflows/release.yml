@@ -136,6 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          flags=(--title "Mox $VERSION" --generate-notes --verify-tag)
-          [[ "$VERSION" == 0.* ]] && flags+=(--prerelease)
+          # Always mark it latest: the pairing page links to
+          # releases/latest/download/Mox.apk, and GitHub's "latest" skips
+          # pre-releases. A 0.x version already says it's early.
+          flags=(--title "Mox $VERSION" --generate-notes --verify-tag --latest)
           gh release create "$GITHUB_REF_NAME" dist/Mox.apk dist/Mox-macOS.zip dist/SHA256SUMS.txt "${flags[@]}"
