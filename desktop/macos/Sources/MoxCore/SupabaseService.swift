@@ -1,168 +1,213 @@
 import Foundation
 
-/// The single row in `current_file`: the file currently held by Mox.
-public struct CurrentFile: Decodable, Equatable {
-    public let storagePath: String
-    public let originalName: String
-    public let mimeType: String?
-    public let sizeBytes: Int64
-    public let uploadedFrom: String
-    public let uploadedAt: String
-
-    /// The row's JSON uses the table's snake_case column names.
-    enum CodingKeys: String, CodingKey {
-        case storagePath = "storage_path"
-        case originalName = "original_name"
-        case mimeType = "mime_type"
-        case sizeBytes = "size_bytes"
-        case uploadedFrom = "uploaded_from"
-        case uploadedAt = "uploaded_at"
-    }
-}
-
-/// Minimal Supabase REST client for Mox. Talks to Storage + PostgREST directly.
+/// Speaks the Mox protocol v2 (shared/PROTOCOL.md) to the owner's Supabase
+/// project over REST: Auth, PostgREST (schema `mox`) and Storage.
 public final class SupabaseService {
-    private let baseURL: URL
-    private let anonKey: String
+    private let settings: MoxSettings
+    private let deviceID: UUID
     private let session: URLSession
+    private let tokens = TokenStore()
     private let bucket = "mox"
+    /// v2 always stores the file under this name (#34).
+    private let objectName = "current"
 
-    public init(config: Config) {
-        self.baseURL = config.supabaseURL
-        self.anonKey = config.supabaseAnonKey
-        let cfg = URLSessionConfiguration.default
-        cfg.timeoutIntervalForRequest = 120
-        cfg.timeoutIntervalForResource = 600
-        self.session = URLSession(configuration: cfg)
+    public init(settings: MoxSettings, deviceID: UUID, session: URLSession? = nil) {
+        self.settings = settings
+        self.deviceID = deviceID
+        self.session = session ?? {
+            let cfg = URLSessionConfiguration.default
+            cfg.timeoutIntervalForRequest = 120
+            cfg.timeoutIntervalForResource = 600
+            return URLSession(configuration: cfg)
+        }()
     }
 
-    // MARK: Public API
+    // MARK: Protocol calls
 
-    /// Reads the current file row, or nil if the table is empty.
+    /// §4.1: signs in and checks that the project speaks schema v2 and that
+    /// this user is the owner.
+    public func checkSchema() async throws {
+        let data = try await send { token in self.rest("meta", query: "select=schema_version", token: token) }
+        guard let meta = try JSONDecoder().decode([MetaRow].self, from: data).first else { throw MoxError.notOwner }
+        guard meta.schemaVersion == 2 else { throw MoxError.schemaMismatch(meta.schemaVersion) }
+    }
+
+    /// §4.2: the file in the slot, or nil when nothing has been sent yet.
     public func fetchCurrent() async throws -> CurrentFile? {
-        var req = restRequest(path: "current_file", query: "id=eq.1&select=*")
-        req.httpMethod = "GET"
-        let (data, resp) = try await session.data(for: req)
-        try expect2xx(resp, data)
-        let rows = try JSONDecoder().decode([CurrentFile].self, from: data)
-        return rows.first
+        let data = try await send { token in self.rest("current_file", query: "id=eq.1&select=*", token: token) }
+        guard let row = try JSONDecoder().decode([CurrentFile].self, from: data).first else { return nil }
+        try row.validate()
+        return row
     }
 
-    /// Uploads a local file and atomically updates the current_file row.
-    /// Returns the row that was written.
-    public func uploadFile(localPath: String, uploadedFrom: String = "mac") async throws -> CurrentFile {
+    /// §4.3 + §4.4: uploads the bytes, then replaces the row. Bytes first, so
+    /// other devices never see a row pointing at a file that isn't there yet.
+    public func uploadFile(localPath: String) async throws -> CurrentFile {
         let url = URL(fileURLWithPath: localPath)
         let attrs = try FileManager.default.attributesOfItem(atPath: localPath)
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
-        guard size > 0 else { throw MoxError.upload("File is empty.") }
-        guard size <= 500 * 1024 * 1024 else {
-            throw MoxError.upload("File exceeds 500 MB cap.")
-        }
-        let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
-        let storagePath = "current.\(ext)"
-        let mime = MimeTypes.forExtension(ext)
+        guard size > 0 else { throw MoxError.upload("The file is empty.") }
+        guard size <= CurrentFile.maxSize else { throw MoxError.tooLarge(size) }
+        let mime = MimeTypes.forExtension(url.pathExtension)
 
-        try await storageUpload(localFile: url, storagePath: storagePath, mime: mime)
+        _ = try await send(upload: url) { token in
+            var req = self.request("storage/v1/object/\(self.bucket)/\(self.objectName)", token: token)
+            req.httpMethod = "POST"
+            req.setValue(mime, forHTTPHeaderField: "Content-Type")
+            req.setValue("true", forHTTPHeaderField: "x-upsert")
+            return req
+        }
 
         let row: [String: Any] = [
             "id": 1,
-            "storage_path": storagePath,
             "original_name": url.lastPathComponent,
             "mime_type": mime,
             "size_bytes": size,
-            "uploaded_from": uploadedFrom
+            "kind": "file",
+            "item_count": 1,
+            "source_platform": "macos",
+            "source_device_id": deviceID.uuidString.lowercased()
         ]
-        return try await upsertCurrent(row)
-    }
-
-    /// Generates a short-lived signed download URL.
-    public func signedDownloadURL(for path: String, expiresIn seconds: Int = 600) async throws -> URL {
-        var req = storageRequest(path: "object/sign/\(bucket)/\(path)")
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.httpBody = try JSONSerialization.data(withJSONObject: ["expiresIn": seconds])
-        let (data, resp) = try await session.data(for: req)
-        try expect2xx(resp, data)
-        struct Reply: Decodable { let signedURL: String }
-        let reply = try JSONDecoder().decode(Reply.self, from: data)
-        // signedURL is path-only, prefix with /storage/v1
-        let full = baseURL.appendingPathComponent("storage/v1").absoluteString + reply.signedURL
-        guard let signedURL = URL(string: full) else { throw MoxError.upload("Bad signed URL") }
-        return signedURL
-    }
-
-    /// Downloads the current file directly to a local destination URL.
-    public func downloadCurrent(to dest: URL) async throws {
-        guard let current = try await fetchCurrent() else {
-            throw MoxError.upload("Nothing to download.")
+        let body = try JSONSerialization.data(withJSONObject: row)
+        let data = try await send { token in
+            var req = self.rest("current_file", query: "on_conflict=id", token: token, writing: true)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.setValue("resolution=merge-duplicates,return=representation", forHTTPHeaderField: "Prefer")
+            req.httpBody = body
+            return req
         }
-        let signed = try await signedDownloadURL(for: current.storagePath)
+        guard let written = try JSONDecoder().decode([CurrentFile].self, from: data).first else {
+            throw MoxError.upload("Supabase didn't return the new row.")
+        }
+        return written
+    }
+
+    /// §4.5: a short-lived download link that needs no credentials.
+    public func signedDownloadURL(expiresIn seconds: Int = 600) async throws -> URL {
+        struct Reply: Decodable { let signedURL: String }
+        let body = try JSONSerialization.data(withJSONObject: ["expiresIn": seconds])
+        let data = try await send { token in
+            var req = self.request("storage/v1/object/sign/\(self.bucket)/\(self.objectName)", token: token)
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.httpBody = body
+            return req
+        }
+        let reply = try JSONDecoder().decode(Reply.self, from: data)
+        // signedURL is relative: prefix it with /storage/v1.
+        guard let url = URL(string: settings.projectURL.appendingPathComponent("storage/v1").absoluteString
+                                + reply.signedURL) else {
+            throw MoxError.upload("Supabase returned an invalid download link.")
+        }
+        return url
+    }
+
+    /// §4.6: downloads the current file to `dest`, replacing it if present.
+    public func downloadCurrent(to dest: URL) async throws {
+        let signed = try await signedDownloadURL()
         let (tmp, resp) = try await session.download(from: signed)
-        try expect2xx(resp, Data())
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw MoxError.http(status, "download failed") }
         if FileManager.default.fileExists(atPath: dest.path) {
             try FileManager.default.removeItem(at: dest)
         }
         try FileManager.default.moveItem(at: tmp, to: dest)
     }
 
-    // MARK: Internals
+    // MARK: Auth (§2)
 
-    private func storageUpload(localFile: URL, storagePath: String, mime: String) async throws {
-        var req = storageRequest(path: "object/\(bucket)/\(storagePath)")
-        req.httpMethod = "POST"
-        req.setValue(mime, forHTTPHeaderField: "Content-Type")
-        req.setValue("true", forHTTPHeaderField: "x-upsert")
-        let (data, resp) = try await session.upload(for: req, fromFile: localFile)
-        try expect2xx(resp, data)
-    }
-
-    private func upsertCurrent(_ row: [String: Any]) async throws -> CurrentFile {
-        var req = restRequest(path: "current_file", query: "on_conflict=id")
-        req.httpMethod = "POST"
-        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("resolution=merge-duplicates,return=representation",
-                     forHTTPHeaderField: "Prefer")
-        req.httpBody = try JSONSerialization.data(withJSONObject: row)
-        let (data, resp) = try await session.data(for: req)
-        try expect2xx(resp, data)
-        let rows = try JSONDecoder().decode([CurrentFile].self, from: data)
-        guard let row = rows.first else { throw MoxError.upload("No row returned.") }
-        return row
-    }
-
-    private func storageRequest(path: String) -> URLRequest {
-        var req = URLRequest(url: baseURL.appendingPathComponent("storage/v1/\(path)"))
-        req.setValue(anonKey, forHTTPHeaderField: "apikey")
-        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
-        return req
-    }
-
-    private func restRequest(path: String, query: String? = nil) -> URLRequest {
-        var comps = URLComponents(
-            url: baseURL.appendingPathComponent("rest/v1/\(path)"),
-            resolvingAgainstBaseURL: false
-        )!
-        comps.query = query
-        var req = URLRequest(url: comps.url!)
-        req.setValue(anonKey, forHTTPHeaderField: "apikey")
-        req.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
-        return req
-    }
-
-    private func expect2xx(_ resp: URLResponse, _ body: Data) throws {
-        guard let http = resp as? HTTPURLResponse else { return }
-        guard (200..<300).contains(http.statusCode) else {
-            let msg = String(data: body, encoding: .utf8) ?? "HTTP \(http.statusCode)"
-            throw MoxError.upload("Supabase: HTTP \(http.statusCode) — \(msg)")
+    /// Sends a request built with a valid access token. On 401 it signs in
+    /// again and retries once.
+    private func send(upload file: URL? = nil, _ build: @escaping (String) -> URLRequest) async throws -> Data {
+        for attempt in 0..<2 {
+            let token = try await accessToken(renew: attempt > 0)
+            let req = build(token)
+            let (data, resp) = try await {
+                if let file { return try await session.upload(for: req, fromFile: file) }
+                return try await session.data(for: req)
+            }()
+            let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+            if status == 401, attempt == 0 { continue }
+            guard (200..<300).contains(status) else {
+                throw MoxError.http(status, String(data: data, encoding: .utf8) ?? "")
+            }
+            return data
         }
+        throw MoxError.signInFailed
+    }
+
+    private func accessToken(renew: Bool) async throws -> String {
+        if !renew, let token = await tokens.valid() { return token }
+        let (token, lifetime) = try await signIn()
+        await tokens.store(token, expiresIn: lifetime)
+        return token
+    }
+
+    /// Signs in as the Mox user. Each device keeps its own session.
+    private func signIn() async throws -> (String, TimeInterval) {
+        var comps = URLComponents(url: settings.projectURL.appendingPathComponent("auth/v1/token"),
+                                  resolvingAgainstBaseURL: false)
+        comps?.queryItems = [URLQueryItem(name: "grant_type", value: "password")]
+        guard let url = comps?.url else { throw MoxError.signInFailed }
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue(settings.publishableKey, forHTTPHeaderField: "apikey")
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.httpBody = try JSONSerialization.data(withJSONObject: ["email": settings.email,
+                                                                   "password": settings.password])
+        let (data, resp) = try await session.data(for: req)
+        guard (resp as? HTTPURLResponse)?.statusCode == 200 else { throw MoxError.signInFailed }
+        let reply = try JSONDecoder().decode(SignInReply.self, from: data)
+        return (reply.accessToken, reply.expiresIn)
+    }
+
+    // MARK: Request building (§3)
+
+    private func request(_ path: String, query: String? = nil, token: String) -> URLRequest {
+        var comps = URLComponents(url: settings.projectURL.appendingPathComponent(path),
+                                  resolvingAgainstBaseURL: false)
+        comps?.percentEncodedQuery = query
+        var req = URLRequest(url: comps?.url ?? settings.projectURL)
+        req.setValue(settings.publishableKey, forHTTPHeaderField: "apikey")
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return req
+    }
+
+    /// A PostgREST request against the `mox` schema.
+    private func rest(_ table: String, query: String, token: String, writing: Bool = false) -> URLRequest {
+        var req = request("rest/v1/\(table)", query: query, token: token)
+        req.setValue("mox", forHTTPHeaderField: writing ? "Content-Profile" : "Accept-Profile")
+        return req
     }
 }
 
-public enum MoxError: LocalizedError, Equatable {
-    case upload(String)
-    public var errorDescription: String? {
-        switch self {
-        case .upload(let message): return message
-        }
+/// `mox.meta`, as far as clients care.
+private struct MetaRow: Decodable {
+    let schemaVersion: Int
+    enum CodingKeys: String, CodingKey { case schemaVersion = "schema_version" }
+}
+
+/// The parts of Supabase Auth's sign-in response Mox uses.
+private struct SignInReply: Decodable {
+    let accessToken: String
+    let expiresIn: TimeInterval
+    enum CodingKeys: String, CodingKey { case accessToken = "access_token", expiresIn = "expires_in" }
+}
+
+/// The current access token, shared safely across concurrent requests.
+actor TokenStore {
+    private var token: String?
+    private var expiry = Date.distantPast
+
+    /// The token if it's valid for at least another minute.
+    func valid() -> String? {
+        guard let token, expiry.timeIntervalSinceNow > 60 else { return nil }
+        return token
+    }
+
+    func store(_ token: String, expiresIn lifetime: TimeInterval) {
+        self.token = token
+        expiry = Date().addingTimeInterval(lifetime)
     }
 }

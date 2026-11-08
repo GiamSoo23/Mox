@@ -1,9 +1,12 @@
 import Foundation
 
 /// Settings read at launch from the process environment and `.env` files.
+/// The Supabase settings are optional here: normally they live in the
+/// Keychain, and a `.env` is only a developer convenience.
 public struct Config {
-    public let supabaseURL: URL
-    public let supabaseAnonKey: String
+    /// Present only when all four values are set (URL, publishable key, Mox
+    /// user email and password).
+    public let settings: MoxSettings?
     public let hotkey: HotKeyCombo
     public let pollInterval: TimeInterval
 
@@ -12,19 +15,21 @@ public struct Config {
     public static func load(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         envFilePaths: [String]? = nil
-    ) throws -> Config {
+    ) -> Config {
         let paths = envFilePaths ?? defaultEnvFilePaths(environment: environment)
         let files = paths.compactMap { try? String(contentsOfFile: $0, encoding: .utf8) }
-        return try from(EnvFile.merge(environment: environment, files: files))
+        return from(EnvFile.merge(environment: environment, files: files))
     }
 
     /// Builds the configuration from already-merged values.
-    public static func from(_ env: [String: String]) throws -> Config {
-        guard let urlString = env["SUPABASE_URL"], let url = URL(string: urlString) else {
-            throw ConfigError.missing("SUPABASE_URL")
-        }
-        guard let key = env["SUPABASE_ANON_KEY"], !key.isEmpty else {
-            throw ConfigError.missing("SUPABASE_ANON_KEY")
+    public static func from(_ env: [String: String]) -> Config {
+        func value(_ name: String) -> String? { env[name].flatMap { $0.isEmpty ? nil : $0 } }
+        var settings: MoxSettings?
+        // SUPABASE_ANON_KEY is the pre-v2 name, still accepted.
+        if let urlString = value("SUPABASE_URL"), let url = URL(string: urlString),
+           let key = value("SUPABASE_PUBLISHABLE_KEY") ?? value("SUPABASE_ANON_KEY"),
+           let email = value("MOX_USER_EMAIL"), let password = value("MOX_USER_PASSWORD") {
+            settings = MoxSettings(projectURL: url, publishableKey: key, email: email, password: password)
         }
 
         // Default is ⌘⇧M — ⌘⇧U is taken by Finder's "Go → Utilities" menu,
@@ -33,7 +38,7 @@ public struct Config {
             ?? HotKeyCombo(key: .m, modifiers: [.command, .shift])
         let poll = TimeInterval(env["MOX_POLL_SECONDS"] ?? "") ?? 5
 
-        return Config(supabaseURL: url, supabaseAnonKey: key, hotkey: hotkey, pollInterval: poll)
+        return Config(settings: settings, hotkey: hotkey, pollInterval: poll)
     }
 
     /// Where `.env` files are looked for, in order: $MOX_ENV,
@@ -80,14 +85,5 @@ public enum EnvFile {
             }
         }
         return merged
-    }
-}
-
-public enum ConfigError: LocalizedError, Equatable {
-    case missing(String)
-    public var errorDescription: String? {
-        switch self {
-        case .missing(let key): return "Missing \(key). Copy .env.example to .env and fill it in."
-        }
     }
 }
