@@ -1,10 +1,10 @@
 -- Tests for schema v2: the `mox` schema, its constraints, and who can read
--- and write what (#7, #40, #48). Rolled back at the end.
+-- and write what (#7, #40, #48, #49). Rolled back at the end.
 -- Run with: cd backend && npx supabase test db
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(27);
+select plan(29);
 
 -- Two users: the Mox owner, and a stranger (e.g. a user of another app
 -- living in the same Supabase project).
@@ -137,21 +137,22 @@ reset role;
 set local role anon;
 select throws_ok(
     $$ insert into storage.objects (bucket_id, name) values ('mox', 'current') $$,
-    '42501', null, 'anon cannot write the v2 object "current", even with the v1 policies'
+    '42501', null, 'anon cannot write the v2 object "current"'
 );
-select lives_ok(
+select throws_ok(
     $$ insert into storage.objects (bucket_id, name) values ('mox', 'current.jpg') $$,
-    'anon can still write a v1 object (current.<ext>), so v1 apps keep working'
+    '42501', null, 'anon cannot write v1-style objects either: the v1 policies are gone (#49)'
 );
 reset role;
 
--- The v1 trigger fix (#48) also covers public.current_file.
-insert into public.current_file (storage_path, original_name, size_bytes, uploaded_from, uploaded_at)
-values ('current.png', 'a.png', 1, 'mac', '2000-01-01T00:00:00Z');
-update public.current_file set original_name = 'b.png' where id = 1;
-select ok(
-    (select uploaded_at > '2000-01-01T00:00:00Z' from public.current_file),
-    'v1 rows get a fresh uploaded_at on update too (#48)'
+-- v1 is gone (#49): nothing of Mox is left in public, and no policy gives
+-- the anon role access to the bucket.
+select hasnt_table('public', 'current_file', 'the v1 table public.current_file is gone');
+select hasnt_function('public', 'mox_touch_uploaded_at', 'the v1 trigger function is gone from public');
+select is_empty(
+    $$ select 1 from pg_policies
+       where schemaname = 'storage' and tablename = 'objects' and policyname like 'mox bucket %' $$,
+    'the v1 anon storage policies are gone'
 );
 
 select * from finish();
