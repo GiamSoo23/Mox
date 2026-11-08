@@ -9,7 +9,23 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 ## [Unreleased]
 
 ### Added
+- Android saves received photos and videos to the Camera folder, so they
+  show up in the gallery ([#43](https://github.com/GiamSoo23/Mox/issues/43)).
+- First Android unit tests (16), run by CI on every PR ([#12](https://github.com/GiamSoo23/Mox/issues/12)).
+- A secret scan (gitleaks) over the full history on every PR ([#59](https://github.com/GiamSoo23/Mox/issues/59)).
 - This changelog and a bug log ([#52](https://github.com/GiamSoo23/Mox/issues/52)).
+
+### Changed
+- Android reads its Supabase credentials from `local.properties` instead
+  of source code ([#58](https://github.com/GiamSoo23/Mox/pull/58)).
+
+### Fixed
+- Android read a null `mime_type` as the string `"null"` ([#56](https://github.com/GiamSoo23/Mox/issues/56)).
+
+### Security
+- The publishable key that had been committed was rotated and deleted, and
+  the legacy `anon` / `service_role` keys were disabled. The old key now
+  gets `401 Unregistered API key` ([#36](https://github.com/GiamSoo23/Mox/issues/36)).
 
 ## [0.3.0] - 2026-11-07 · Backend v2
 
