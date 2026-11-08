@@ -34,7 +34,7 @@ Then, from **Project Settings → API Keys**, copy the project URL and the
 **publishable** key into:
 
 - `desktop/macos/.env` (copy `desktop/macos/.env.example` first)
-- `mobile/android/app/src/main/java/com/mox/app/Config.kt`
+- `mobile/android/local.properties` (`mox.supabaseUrl=…`, `mox.supabaseKey=…`)
 
 Never put the secret (`sb_secret_…`) key in a client.
 

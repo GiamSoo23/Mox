@@ -61,6 +61,10 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun refreshOnce() {
+        if (!Config.isConfigured) {
+            _state.value = UiState.Empty(error = Config.NOT_CONFIGURED_MESSAGE)
+            return
+        }
         try {
             val current = repo.fetchCurrent()
             _state.value = if (current == null) {
@@ -166,6 +170,10 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
 
     fun upload(uri: Uri) = viewModelScope.launch {
+        if (!Config.isConfigured) {
+            _state.value = UiState.Error(Config.NOT_CONFIGURED_MESSAGE)
+            return@launch
+        }
         val resolver = getApplication<Application>().contentResolver
         val (name, size, mime) = describe(resolver, uri)
         _state.value = UiState.Uploading(name)

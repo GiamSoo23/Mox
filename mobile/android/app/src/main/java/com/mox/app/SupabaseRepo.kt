@@ -52,8 +52,8 @@ internal fun JSONObject.stringOrNull(key: String): String? =
  * No SDK — just OkHttp + org.json so the APK stays small.
  */
 class SupabaseRepo(
-    private val baseUrl: String = Config.SUPABASE_URL.trimEnd('/'),
-    private val key: String = Config.SUPABASE_KEY
+    private val baseUrl: String = Config.supabaseUrl.trimEnd('/'),
+    private val key: String = Config.supabaseKey
 ) : MoxBackend {
     private val bucket = "mox"
     private val client = OkHttpClient.Builder()

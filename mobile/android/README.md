@@ -4,10 +4,21 @@ Plain Compose + OkHttp app. No external SDK — small APK.
 
 ## Configure
 
-Edit [app/src/main/java/com/mox/app/Config.kt](app/src/main/java/com/mox/app/Config.kt)
-with your Supabase project URL and **publishable** (or legacy anon) key.
+Add your Supabase project URL and **publishable** key to
+`mobile/android/local.properties`. Android Studio creates that file, and git
+ignores it, so credentials never reach the repository:
 
-Never paste your `sb_secret_…` key here — that one is server-only.
+```properties
+mox.supabaseUrl=https://<project-ref>.supabase.co
+mox.supabaseKey=sb_publishable_...
+```
+
+They're compiled into `BuildConfig` at build time. If they're missing (CI
+builds, for example), the app starts and says it isn't configured. Never use
+your `sb_secret_…` key in a client.
+
+This is temporary: in v2 the app gets its configuration at runtime by
+scanning the pairing QR (#12, #17).
 
 ## Build
 

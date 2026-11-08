@@ -1,18 +1,28 @@
 package com.mox.app
 
 /**
- * Mox configuration. Edit these two constants with your Supabase project's
- * URL and publishable / anon key before building.
+ * Mox configuration.
  *
- * Either the legacy anon JWT (starts with `eyJ…`) or the new publishable
- * key (`sb_publishable_…`) works — both are safe to ship to clients.
+ * The Supabase project URL and publishable key are read at build time from
+ * `mobile/android/local.properties`, which git ignores, so they never live
+ * in source control:
  *
- * NEVER paste the `sb_secret_…` (service-role) key here. That key is for
- * trusted server code only.
+ *     mox.supabaseUrl=https://<project-ref>.supabase.co
+ *     mox.supabaseKey=sb_publishable_...
+ *
+ * This is temporary: v2 configures the app at runtime by scanning the pairing
+ * QR (#12, #17). Never use the secret (`sb_secret_...`) key in a client.
  */
 object Config {
-    const val SUPABASE_URL = "https://fapiuwnlrlyrpuivxxte.supabase.co"
-    const val SUPABASE_KEY = "sb_publishable_NvbYTNRpcGjiVnnRmc9z2g_yB9RDnVb"
+    val supabaseUrl: String = BuildConfig.SUPABASE_URL
+    val supabaseKey: String = BuildConfig.SUPABASE_KEY
+
+    /** False when local.properties had no credentials at build time (CI builds). */
+    val isConfigured: Boolean = supabaseUrl.isNotBlank() && supabaseKey.isNotBlank()
+
+    const val NOT_CONFIGURED_MESSAGE =
+        "Mox isn't configured. Add mox.supabaseUrl and mox.supabaseKey to " +
+            "local.properties and rebuild."
 
     /** How often to poll the current_file row, in milliseconds. */
     const val POLL_MS = 5_000L
