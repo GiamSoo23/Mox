@@ -74,7 +74,8 @@ final class ManagementAPITests: XCTestCase {
 
     func testExposedSchemasAreReadAndWrittenAsAList() async throws {
         MockURLProtocol.reply(200, #"{"db_schema":"public, graphql_public,mox","max_rows":1000}"#)
-        XCTAssertEqual(try await api.exposedSchemas(project: "ref"), ["public", "graphql_public", "mox"])
+        let schemas = try await api.exposedSchemas(project: "ref")
+        XCTAssertEqual(schemas, ["public", "graphql_public", "mox"])
 
         MockURLProtocol.reply(200, #"{"db_schema":"public,graphql_public,mox"}"#)
         try await api.setExposedSchemas(project: "ref", ["public", "graphql_public", "mox"])
