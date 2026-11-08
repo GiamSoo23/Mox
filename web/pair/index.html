@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- The pairing data lives in the URL fragment and never leaves the phone:
+       no third-party scripts, no analytics, no referrer, no forms. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <title>Pair your phone · Mox</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="pair.js"></script>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Mox</h1>
+      <p class="tagline">One file, between your devices</p>
+    </header>
+
+    <section id="loading" class="card">Reading the pairing link…</section>
+
+    <section id="error" class="card error" hidden>
+      <h2>This link can't be used</h2>
+      <p id="error-message"></p>
+    </section>
+
+    <section id="pairing" hidden>
+      <div class="card summary">
+        <p class="label">Pairing with</p>
+        <p id="desktop-name" class="big"></p>
+        <p class="muted">Project <span id="project-host"></span></p>
+      </div>
+
+      <div id="android" hidden>
+        <ol class="steps">
+          <li class="card">
+            <h2>1 · Install Mox</h2>
+            <p>Skip this if Mox is already on your phone.</p>
+            <a id="download-apk" class="button secondary" href="#">Download Mox for Android</a>
+            <p class="muted small">Android will ask to allow installs from your browser. That's expected for apps
+              outside the Play Store. Mox is open source:
+              <a href="https://github.com/GiamSoo23/Mox">see the code</a>.</p>
+          </li>
+          <li class="card">
+            <h2>2 · Finish pairing</h2>
+            <p>Opens Mox and sets it up. No keys to type.</p>
+            <a id="open-app" class="button" href="#">Open in Mox</a>
+          </li>
+        </ol>
+      </div>
+
+      <div id="ios" class="card" hidden>
+        <h2>iPhone support is on the way</h2>
+        <p>Mox for iPhone arrives in version 1.1, with a share-sheet shortcut and notifications.
+          <a href="https://github.com/GiamSoo23/Mox/issues/27">Follow the progress</a>.</p>
+      </div>
+
+      <div id="desktop" class="card" hidden>
+        <h2>Open this on your phone</h2>
+        <p>Scan the QR code shown by Mox on your computer with your phone's camera.</p>
+      </div>
+    </section>
+
+    <footer class="muted small">
+      Nothing on this page is sent anywhere: the pairing data stays on your phone.
+      <a href="https://github.com/GiamSoo23/Mox/blob/main/shared/PROTOCOL.md#8-pairing-link-v1">How pairing works</a>
+    </footer>
+  </main>
+</body>
+</html>
