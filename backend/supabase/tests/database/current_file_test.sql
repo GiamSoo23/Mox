@@ -1,10 +1,11 @@
 -- Tests for the v1 schema (migration 20260526000000_initial_schema).
+-- The bucket's size cap is tested in mox_v2_test.sql: v2 lowered it.
 -- Run with: cd backend && npx supabase test db
 -- Everything runs inside a transaction that is rolled back at the end.
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(11);
+select plan(10);
 
 -- Table shape -----------------------------------------------------------
 select has_table('public', 'current_file', 'current_file table exists');
@@ -41,12 +42,6 @@ select is(
     (select public from storage.buckets where id = 'mox'),
     false,
     'bucket mox exists and is private'
-);
-
-select is(
-    (select file_size_limit from storage.buckets where id = 'mox'),
-    524288000::bigint,
-    'bucket cap is 500 MB in v1 (free plan enforces 50 MB, see #35)'
 );
 
 -- Row level security ----------------------------------------------------
