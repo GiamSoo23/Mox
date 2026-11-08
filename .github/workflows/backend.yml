@@ -1,16 +1,18 @@
-# Starts a throwaway Supabase stack in Docker, applies every migration and
-# runs the pgTAP database tests. Never touches a real Supabase project.
+# Starts a throwaway Supabase stack in Docker, applies every migration,
+# runs the pgTAP database tests and checks the shared fixtures. Never touches a real Supabase project.
 name: Backend
 
 on:
   pull_request:
     paths:
       - "backend/**"
+      - "shared/**"
       - ".github/workflows/backend.yml"
   push:
     branches: [main]
     paths:
       - "backend/**"
+      - "shared/**"
       - ".github/workflows/backend.yml"
 
 concurrency:
@@ -44,3 +46,8 @@ jobs:
 
       - name: Run pgTAP tests
         run: supabase test db
+
+      # Every shared fixture must agree with the schema: valid rows are
+      # accepted, invalid rows are rejected.
+      - name: Check shared fixtures against the schema
+        run: ../shared/fixtures/check-rows.sh
