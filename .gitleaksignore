@@ -1,0 +1,6 @@
+# Findings reviewed and accepted. One fingerprint per line.
+#
+# The original publishable key, committed in Config.kt in the first commit.
+# It was deleted from Supabase on 2026-11-08 and now returns
+# "401 Unregistered API key", so the copy in history is useless (#36).
+1d37bbe8f9920bcd18ae4b5655c0915b043b90e2:android/app/src/main/java/com/mox/app/Config.kt:generic-api-key:15
