@@ -53,7 +53,7 @@ npx supabase stop
 
 ### v2: the `mox` schema
 
-Migrations `20261107*` add schema v2 (design: [docs/DESIGN.md §8](../docs/DESIGN.md)):
+Migrations `20261107*` add schema v2 and `20261108120000_drop_v1.sql` removes v1 (design: [docs/DESIGN.md §8](../docs/DESIGN.md)):
 
 - **`mox.meta`:** one row with `schema_version` (2) and `owner_id`, the only
   auth user allowed to use Mox.
@@ -77,11 +77,13 @@ The setup wizard (#22) will do this for you. Until then, by hand:
    ```
 3. **Project Settings → API → Exposed schemas**: add `mox`.
 
-### v1 (still present)
+### v1 (removed)
 
-`public.current_file` and the `current.<ext>` objects are kept so apps that
-haven't been updated keep working. They'll be removed once both apps speak
-v2 ([#49](https://github.com/GiamSoo23/Mox/issues/49)).
+v1's `public.current_file`, its anonymous policies and the `current.<ext>`
+storage rules were dropped once both apps spoke v2
+([#49](https://github.com/GiamSoo23/Mox/issues/49)). Leftover `current.<ext>`
+files can only be deleted through the Storage API, so remove them once from
+the dashboard (**Storage → mox**) to free the space.
 
 ## Tests
 

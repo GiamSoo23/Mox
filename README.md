@@ -209,9 +209,8 @@ devices and that project.
 - **Owner-only data (schema v2).** v2 doesn't trust the key alone: Row Level
   Security lets in exactly one dedicated Mox user, the owner, so the
   publishable key by itself reads nothing. That keeps Mox safe even inside a
-  project that also runs a public website ([#40](https://github.com/GiamSoo23/Mox/issues/40)). The current apps
-  still use the v1 schema until they move to v2 ([#11](https://github.com/GiamSoo23/Mox/issues/11),
-  [#12](https://github.com/GiamSoo23/Mox/issues/12)).
+  project that also runs a public website ([#40](https://github.com/GiamSoo23/Mox/issues/40)). Both apps speak
+  v2, and the old anonymous v1 schema has been removed ([#49](https://github.com/GiamSoo23/Mox/issues/49)).
 - **Private storage.** Files are only reachable through short-lived signed
   URLs, and the bucket is capped at 50 MB per file, the free plan's limit.
 - **Tested.** pgTAP tests check who can read and write what, on every
