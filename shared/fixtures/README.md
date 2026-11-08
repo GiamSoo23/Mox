@@ -31,5 +31,31 @@ A row of `mox.current_file` exactly as PostgREST returns it (one object).
 clients must **ignore fields they don't know**, so the schema can grow
 without breaking older apps.
 
-Pairing payloads (#14) and bundles (#18) get their own folders when those
-specs are written.
+## `pairing/`
+
+Pairing links (PROTOCOL.md §8), one per `.txt` file. All values are fake.
+
+| Folder | Clients must… |
+|---|---|
+| `valid/` | parse the `.txt` into exactly the fields in the matching `.json` |
+| `invalid/` | refuse it and store nothing |
+
+The valid set covers the plain link, the `mox://pair?` hand-off form, a
+`+` in the email (decoders must not turn it into a space), a non-ASCII
+desktop name, a missing name (`desktopName: null`), and a trailing slash
+plus an unknown key (both tolerated).
+
+| Invalid fixture | Breaks the rule |
+|---|---|
+| `secret-key.txt` | a `sb_secret_` key must never be accepted |
+| `legacy-anon-key.txt` | only `sb_publishable_` keys |
+| `http-project-url.txt`, `project-url-with-path.txt` | `https://` and a bare host |
+| `missing-password.txt`, `empty-email.txt` | required keys present and non-empty |
+| `short-password.txt` | password is 16–128 characters |
+| `email-without-at.txt` | exactly one `@` |
+| `name-too-long.txt` | name is at most 64 characters |
+| `future-version.txt` | only `v=1`; newer versions mean "update the app" |
+| `duplicate-key.txt` | no key twice |
+| `no-parameters.txt` | a link without parameters |
+
+Bundles (#18) get their own folder when that spec is written.

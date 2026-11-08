@@ -200,9 +200,69 @@ that was already handled.
 | `413`, or storage "Payload too large" | over the bucket's limit | should have been caught by the size check |
 | network error | — | keep the last good state, retry on the next poll |
 
-## 8. Coming next
+## 8. Pairing link, v1
 
-- **Pairing payload v1:** the format of the QR link (#14)
-- **Bundle format:** how several files are zipped and unpacked safely (#18)
+How a desktop hands its configuration (§1) to a phone. The desktop shows it
+as a QR code ("Pair a phone") or copies it, the phone's camera opens it, and
+the pairing page passes it on to the phone app. Design: DESIGN.md §7.2.
 
-Both will be added here, with fixtures.
+### 8.1 Two forms, same parameters
+
+| Form | Example | Where it's used |
+|---|---|---|
+| **Pairing link** | `https://giamsoo23.github.io/Mox/pair/#v=1&u=…&k=…&e=…&p=…&n=…` | Inside the QR. Parameters go in the **fragment** (after `#`), which browsers never send to a server |
+| **App hand-off** | `mox://pair?v=1&u=…&k=…&e=…&p=…&n=…` | Built by the pairing page to open the installed app. Same parameters, in the query |
+
+On Android the pairing page opens the hand-off as
+`intent://pair?<params>#Intent;scheme=mox;package=com.mox.app;S.browser_fallback_url=<latest APK>;end`.
+If Mox is installed it opens, and if not, the browser downloads the APK.
+(iPhone hand-off: v1.1, #28.)
+
+The pairing page's address can differ (a fork may host its own), so
+clients **don't check the host**. They only read the parameters.
+
+### 8.2 Parameters
+
+| Key | Required | Value | Rule |
+|---|:-:|---|---|
+| `v` | yes | link version | Exactly `1`. Any other value: refuse, and say the app needs an update |
+| `u` | yes | project URL | `https://`, a host, no path, query or fragment. One trailing `/` is tolerated and removed |
+| `k` | yes | publishable key | Starts with `sb_publishable_`. A key starting with `sb_secret_` must be **refused and never stored** |
+| `e` | yes | Mox user's email | Exactly one `@`, at most 254 characters |
+| `p` | yes | Mox user's password | 16 to 128 characters |
+| `n` | no | desktop name, for display | At most 64 characters. If missing, show "your computer" |
+
+**Encoding.** Parameters are `key=value` pairs joined with `&`. Encoders
+percent-encode every byte of the UTF-8 value except `A–Z a–z 0–9 - . _ ~`.
+Decoders percent-decode and **never turn `+` into a space**, so an email
+like `mox+desk@example.com` survives. Watch out: Java's `URLDecoder` does
+turn `+` into a space.
+
+**Invalid if:** a required key is missing or empty, any key appears twice,
+or a value breaks its rule. **Unknown keys are ignored**, so v1 links can
+gain optional fields without breaking older apps.
+
+**Size.** A typical link is about 250 characters. Keep links under 500 so
+the QR stays easy to scan.
+
+### 8.3 What the phone does with a valid link
+
+1. Store `u`, `k`, `e`, `p` securely (§1) and generate this installation's
+   device id.
+2. Sign in (§2) and check the schema version (§4.1). If either fails, show
+   the error from §7 and keep nothing.
+3. Show "Paired with {n}".
+
+### 8.4 Security
+
+- **The QR is a secret.** It carries the Mox user's password. Desktops show
+  it only on request, and "Re-key" changes the password (DESIGN.md §7.2).
+- The pairing page reads the fragment in the browser only. It has no
+  analytics, logging or third-party scripts, so the parameters never leave
+  the phone except in the hand-off to the app.
+
+Fixtures: [fixtures/pairing/](fixtures/pairing/).
+
+## 9. Coming next
+
+- **Bundle format:** how several files are zipped and unpacked safely (#18).
