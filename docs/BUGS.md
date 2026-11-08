@@ -5,7 +5,7 @@ labeled [`bug`](https://github.com/GiamSoo23/Mox/issues?q=label%3Abug) are
 the source of truth.** This page is the readable summary: what happened,
 why, and what keeps it from coming back.
 
-Last updated: 2026-11-07.
+Last updated: 2026-11-08.
 
 ## Index
 
@@ -14,7 +14,8 @@ Last updated: 2026-11-07.
 | [#48](https://github.com/GiamSoo23/Mox/issues/48) | `uploaded_at` isn't refreshed when the file is replaced, so Android can miss files | backend | Reviewing the upsert while writing schema v2, then **reproduced on a real phone** | **Fixed** (0.3.0), applied to the live project and verified on the phone |
 | [#34](https://github.com/GiamSoo23/Mox/issues/34) | Old storage object left behind when the extension changes | backend | Code review for the README | Fixed by design in v2. Done once clients use v2 |
 | [#35](https://github.com/GiamSoo23/Mox/issues/35) | Uploads over 50 MB fail; docs promised 500 MB | backend, docs | Checking the free plan's limits | Cap and checks in 0.3.0. Client checks pending |
-| [#36](https://github.com/GiamSoo23/Mox/issues/36) | Supabase key committed in Android `Config.kt` | security | Review before making the repo public | Open, fixed by #12 + key rotation |
+| [#36](https://github.com/GiamSoo23/Mox/issues/36) | Supabase key committed in Android `Config.kt` | security | Review before making the repo public | **Fixed**: key out of the code, rotated, verified dead, gitleaks in CI |
+| [#56](https://github.com/GiamSoo23/Mox/issues/56) | Android read a null `mime_type` as the string `"null"` | Android | Writing the first unit tests | Fixed (latent, never triggered) |
 | [#2](https://github.com/GiamSoo23/Mox/issues/2) | macOS README said the hotkey was ⌘⇧U; it's ⌘⇧M | docs | Comparing the docs to the code | Fixed in 0.1.0 |
 | — | ⌘⇧U didn't work while Finder was in front | macOS | Daily use, before versioning | Fixed before 0.1.0 |
 | — | Android didn't copy received files to the clipboard | Android | Daily use, before versioning | Worked around in 0.1.0 |
@@ -96,9 +97,34 @@ publishable key into `Config.kt`, so they're in the git history.
 **Risk.** With v1's policies, anyone holding that key can read and replace
 the current file. The repo is still private, so it hasn't leaked.
 
-**Fix.** Configuration moves to runtime (#12). Then the old key is rotated,
-which makes the copy in the history useless, and gitleaks scans the history
-before the repo goes public. v2 also no longer trusts the key alone (#40).
+**Fix.** The key moved out of the code into git-ignored `local.properties`
+(#58). Then a new key was created, both apps were updated, and the old key
+was deleted along with the legacy `anon` / `service_role` keys. A request
+with the old key now gets `401 Unregistered API key`, so the copy in the
+history is useless. History wasn't rewritten: that would change every
+commit hash and break the issue and PR links.
+
+**Prevention.** A full-history gitleaks scan found only that one, now
+revoked, key (recorded in `.gitleaksignore`). CI now runs gitleaks on every
+PR (#59). v2 also stops trusting the key alone (#40): v2 data needs the Mox
+user's sign-in.
+
+### #56: a null MIME type became the text "null"
+
+**Symptom.** None yet. A row with `"mime_type": null` would have given the
+Android app the MIME type `"null"`, which then went into the gallery entry
+and share intents.
+
+**Root cause.** On Android, `JSONObject.optString` turns JSON `null` into
+the string `"null"`. The `org.json` library used in JVM tests returns `""`
+instead, so the same code behaves differently in tests and on the phone.
+
+**Fix.** An explicit `isNull` check (`JSONObject.stringOrNull`), correct
+with either implementation.
+
+**Lesson.** "Tests pass" only means as much as the test environment
+matches the device. When a platform API differs from its test stand-in,
+code against the behavior they share.
 
 ### ⌘⇧U and Finder (before versioning)
 
