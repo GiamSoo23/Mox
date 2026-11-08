@@ -119,7 +119,14 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val current = backend.fetchCurrent()
             _state.value = if (current == null) UiState.Empty() else UiState.Ready(current)
-            if (current != null) receiveIfNew(current)
+            if (lastHandled == null) {
+                // First poll after install or pairing: remember what's in the slot,
+                // even when it's empty, so the next file from another device counts
+                // as new (#71). What's already there isn't downloaded.
+                setLastHandled(current?.uploadedAt ?: EMPTY_SLOT)
+            } else if (current != null) {
+                receiveIfNew(current)
+            }
         } catch (e: Exception) {
             if (_state.value is UiState.Loading) {
                 _state.value = UiState.Empty(error = e.message)
@@ -131,13 +138,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     /** PROTOCOL.md §6: skip our own uploads and files already handled. */
     private suspend fun receiveIfNew(file: CurrentFile) {
         if (file.sourceDeviceId == deviceId) return
-        val last = lastHandled
-        if (last == null) {
-            // First run or fresh pairing: remember what's there, don't download it.
-            setLastHandled(file.uploadedAt)
-            return
-        }
-        if (file.uploadedAt == last) return
+        if (file.uploadedAt == lastHandled) return
         setLastHandled(file.uploadedAt)
         autoSaveAndNotify(file)
     }
@@ -301,6 +302,9 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     private companion object {
         const val KEY_DEVICE_ID = "deviceId"
         const val KEY_LAST_HANDLED = "lastHandledUploadedAt"
+
+        /** Baseline when the slot was empty on the first poll (#71). */
+        const val EMPTY_SLOT = "empty"
         const val NOT_PAIRED_MESSAGE =
             "Pair Mox with your computer first: open Mox there, choose Pair a Phone, and scan the code."
     }
