@@ -1,4 +1,4 @@
-# Lints and builds the Android app on every PR that touches it, and keeps
+# Lints, unit-tests and builds the Android app on every PR that touches it, and keeps
 # the debug APK as a downloadable artifact for testing on a phone.
 name: Android
 
@@ -6,12 +6,14 @@ on:
   pull_request:
     paths:
       - "mobile/android/**"
+      - "shared/**"
       - ".editorconfig"
       - ".github/workflows/android.yml"
   push:
     branches: [main]
     paths:
       - "mobile/android/**"
+      - "shared/**"
       - ".editorconfig"
       - ".github/workflows/android.yml"
 
@@ -43,6 +45,9 @@ jobs:
 
       - name: Lint
         run: ./gradlew ktlintCheck
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest
 
       - name: Build debug APK
         run: ./gradlew assembleDebug
