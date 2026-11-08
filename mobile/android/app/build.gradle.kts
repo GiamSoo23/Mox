@@ -16,6 +16,21 @@ val localProperties = Properties().apply {
 
 fun localProperty(name: String): String = localProperties.getProperty(name, "").trim()
 
+// Version: the release workflow passes -PmoxVersion=X.Y.Z from the git tag.
+// versionCode must grow with every release for Android to accept an update,
+// so it's derived from the version: 1.2.3 -> 10203.
+val moxVersion: String = (findProperty("moxVersion") as String?) ?: "0.1.0"
+val moxVersionCode: Int = moxVersion.split(".").map { it.toInt() }
+    .let { (major, minor, patch) -> major * 10_000 + minor * 100 + patch }
+
+// Release signing: the release workflow decodes the keystore from GitHub
+// secrets and points these environment variables at it. Every release must
+// be signed with the same key, or Android refuses to install the update over
+// the old version (DESIGN.md, #63). Without them (local builds), release
+// builds fall back to the debug key, and the workflow refuses to publish
+// anything not signed with the release key.
+val releaseKeystorePath: String? = System.getenv("MOX_KEYSTORE_PATH")?.takeIf { it.isNotBlank() }
+
 android {
     namespace = "com.mox.app"
     compileSdk = 35
@@ -24,17 +39,29 @@ android {
         applicationId = "com.mox.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = moxVersionCode
+        versionName = moxVersion
 
         buildConfigField("String", "SUPABASE_URL", "\"${localProperty("mox.supabaseUrl")}\"")
         buildConfigField("String", "SUPABASE_KEY", "\"${localProperty("mox.supabaseKey")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseKeystorePath != null) {
+                storeFile = file(releaseKeystorePath)
+                storePassword = System.getenv("MOX_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("MOX_KEY_ALIAS")
+                keyPassword = System.getenv("MOX_KEYSTORE_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            val signingName = if (releaseKeystorePath != null) "release" else "debug"
+            signingConfig = signingConfigs.getByName(signingName)
         }
     }
     compileOptions {
