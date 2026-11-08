@@ -11,7 +11,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ note: Notification) {
         let config = Config.load()
         let deviceID = DeviceIdentity.id
-        let supa = config.settings.map { SupabaseService(settings: $0, deviceID: deviceID) }
+        let settings = SettingsStore.resolve(fromEnv: config.settings)
+        let supa = settings.map { SupabaseService(settings: $0, deviceID: deviceID) }
         let bar = MenuBarController(supabase: supa, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
 
         self.supabase = supa
