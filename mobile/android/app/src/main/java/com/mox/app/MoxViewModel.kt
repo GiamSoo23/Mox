@@ -35,7 +35,7 @@ sealed class UiState {
 }
 
 class MoxViewModel(app: Application) : AndroidViewModel(app) {
-    private val repo = SupabaseRepo()
+    private val repo: MoxBackend = SupabaseRepo()
     private val _state = MutableStateFlow<UiState>(UiState.Loading)
     val state: StateFlow<UiState> = _state.asStateFlow()
     private var pollJob: Job? = null
