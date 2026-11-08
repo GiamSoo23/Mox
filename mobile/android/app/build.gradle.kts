@@ -139,3 +139,9 @@ tasks.register<JavaExec>("ktlintFormat") {
 }
 
 tasks.named("check") { dependsOn(ktlintCheck) }
+
+// Unit tests read the shared fixtures (shared/fixtures/), the same files the
+// Mac, the pairing page and the database are tested against.
+tasks.withType<Test>().configureEach {
+    systemProperty("mox.fixtures", rootProject.file("../../shared/fixtures").absolutePath)
+}
