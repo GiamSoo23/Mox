@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey = HotKeyManager()
     private var pollTimer: Timer?
     private var pollInterval: TimeInterval = 5
+    private var pairingWindow: PairingWindowController?
 
     func applicationDidFinishLaunching(_ note: Notification) {
         let config = Config.load()
@@ -37,6 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             bar.showStatus("Hotkey \(config.hotkey.human) FAILED to register "
                            + "(OSStatus \(regStatus)). Use menu instead.")
+        }
+
+        if let settings {
+            bar.onPairPhone = { [weak self] in self?.showPairing(settings) }
         }
 
         guard let supa else {
@@ -99,6 +104,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
         }
+    }
+
+    /// Opens (or brings back) the "Pair a Phone" window with a fresh QR code.
+    private func showPairing(_ settings: MoxSettings) {
+        let link = settings.pairingLink(desktopName: DeviceIdentity.name).url()
+        let controller = PairingWindowController(link: link, desktopName: DeviceIdentity.name)
+        pairingWindow = controller
+        controller.present()
     }
 
     private func poll() async {
