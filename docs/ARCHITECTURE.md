@@ -69,7 +69,7 @@ so the row never points at bytes that haven't finished uploading. Receiving
 is **1 → 4 → 5**.
 
 Implementations:
-[SupabaseService.swift](../desktop/macos/Sources/Mox/SupabaseService.swift) ·
+[SupabaseService.swift](../desktop/macos/Sources/MoxCore/SupabaseService.swift) ·
 [SupabaseRepo.kt](../mobile/android/app/src/main/java/com/mox/app/SupabaseRepo.kt)
 
 ---
