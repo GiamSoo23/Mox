@@ -132,7 +132,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 // would need the storage permission. Keep the file in app
                 // storage and share it through the FileProvider instead.
                 val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
-                val out = File(dir, sanitize(file.originalName))
+                val out = File(dir, FileNames.sanitize(file.originalName))
                 out.outputStream().use { repo.downloadToStream(it, file) }
                 val uri = FileProvider.getUriForFile(
                     ctx,
@@ -148,7 +148,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 SaveDestination.DOWNLOADS -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
             }
             val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, sanitize(file.originalName))
+                put(MediaStore.MediaColumns.DISPLAY_NAME, FileNames.sanitize(file.originalName))
                 file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
                 put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
                 // Hidden from other apps (the gallery included) until fully written.
@@ -164,8 +164,6 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
             resolver.update(uri, values, null, null)
             SavedFile(uri, destination.label)
         }
-
-    private fun sanitize(name: String): String = name.replace("[^A-Za-z0-9._-]".toRegex(), "_")
 
     fun upload(uri: Uri) = viewModelScope.launch {
         val resolver = getApplication<Application>().contentResolver
@@ -184,7 +182,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val app = getApplication<Application>()
             val dir = File(app.cacheDir, "downloads").apply { mkdirs() }
-            val safe = s.file.originalName.replace("[^A-Za-z0-9._-]".toRegex(), "_")
+            val safe = FileNames.sanitize(s.file.originalName)
             val outFile = File(dir, safe)
             repo.downloadTo(outFile, s.file)
             _state.value = UiState.Ready(s.file, downloadedTo = outFile)
