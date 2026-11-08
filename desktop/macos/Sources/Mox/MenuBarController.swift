@@ -11,6 +11,8 @@ final class MenuBarController: NSObject {
     /// uploaded_at of the last file this Mac received, kept across launches
     /// so a file sent while the Mac was off still arrives (PROTOCOL.md §6).
     private let lastHandledKey = "MoxLastHandledUploadedAt"
+    /// Baseline when the slot was empty on the first poll (#71).
+    private static let emptySlot = "empty"
     private let hotkeyHuman: String
     private var lastStatus: String?
     /// Set by the app delegate when Mox is configured; opens the QR window.
@@ -47,14 +49,15 @@ final class MenuBarController: NSObject {
     func update(current: CurrentFile?) {
         self.current = current
         rebuildMenu()
-        guard let file = current, file.sourceDeviceId != deviceID else { return }
         let defaults = UserDefaults.standard
         guard let lastHandled = defaults.string(forKey: lastHandledKey) else {
-            // First run: remember what's there without downloading an old file.
-            defaults.set(file.uploadedAt, forKey: lastHandledKey)
+            // First poll ever: remember what's in the slot, even when it's empty,
+            // so the next file from another device counts as new (#71). What's
+            // already there isn't downloaded.
+            defaults.set(current?.uploadedAt ?? Self.emptySlot, forKey: lastHandledKey)
             return
         }
-        guard file.uploadedAt != lastHandled else { return }
+        guard let file = current, file.sourceDeviceId != deviceID, file.uploadedAt != lastHandled else { return }
         defaults.set(file.uploadedAt, forKey: lastHandledKey)
         tintBusy(false, accent: true)
         autoSaveFromPhone(file)
