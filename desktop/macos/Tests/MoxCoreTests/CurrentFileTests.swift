@@ -1,32 +1,41 @@
 import XCTest
 @testable import MoxCore
 
-/// The v1 row as PostgREST returns it. v2 rows get fixture tests with #11.
+/// v2 rows against shared/fixtures/rows/, the same files CI inserts into the
+/// real schema and the other clients test against.
 final class CurrentFileTests: XCTestCase {
-    private func decode(_ json: String) throws -> CurrentFile {
-        let rows = try JSONDecoder().decode([CurrentFile].self, from: Data(json.utf8))
-        return try XCTUnwrap(rows.first)
+    private func decodeRow(_ url: URL) throws -> CurrentFile {
+        try JSONDecoder().decode(CurrentFile.self, from: Data(contentsOf: url))
     }
 
-    func testDecodesASnakeCaseRowAndIgnoresUnknownFields() throws {
-        let file = try decode("""
-        [{"id":1,"storage_path":"current.jpg","original_name":"IMG_0001.jpg",
-          "mime_type":"image/jpeg","size_bytes":2048,"uploaded_from":"android",
-          "uploaded_at":"2026-11-08T03:48:08.315078+00:00"}]
-        """)
-        XCTAssertEqual(file.storagePath, "current.jpg")
-        XCTAssertEqual(file.originalName, "IMG_0001.jpg")
-        XCTAssertEqual(file.mimeType, "image/jpeg")
-        XCTAssertEqual(file.sizeBytes, 2048)
-        XCTAssertEqual(file.uploadedFrom, "android")
-        XCTAssertEqual(file.uploadedAt, "2026-11-08T03:48:08.315078+00:00")
+    func testEveryValidRowFixtureDecodesAndValidates() throws {
+        let rows = try Fixtures.files("rows/valid", ext: "json")
+        XCTAssertGreaterThanOrEqual(rows.count, 4)
+        for file in rows {
+            XCTAssertNoThrow(try decodeRow(file).validate(), file.lastPathComponent)
+        }
+    }
+
+    func testEveryInvalidRowFixtureIsRefused() throws {
+        let rows = try Fixtures.files("rows/invalid", ext: "json")
+        XCTAssertGreaterThanOrEqual(rows.count, 11)
+        for file in rows {
+            // Either it doesn't decode (missing device id) or validate() refuses it.
+            XCTAssertThrowsError(try decodeRow(file).validate(), file.lastPathComponent)
+        }
+    }
+
+    func testFieldsOfAValidRow() throws {
+        let row = try decodeRow(Fixtures.root.appendingPathComponent("rows/valid/bundle-from-android.json"))
+        XCTAssertEqual(row.kind, "bundle")
+        XCTAssertEqual(row.itemCount, 5)
+        XCTAssertEqual(row.sourcePlatform, "android")
+        XCTAssertEqual(row.sourceName, "Android")
+        XCTAssertEqual(row.sourceDeviceId, UUID(uuidString: "a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d"))
     }
 
     func testANullMimeTypeIsNil() throws {
-        let file = try decode("""
-        [{"storage_path":"current.bin","original_name":"notes","mime_type":null,
-          "size_bytes":1,"uploaded_from":"mac","uploaded_at":"2026-11-08T00:00:00+00:00"}]
-        """)
-        XCTAssertNil(file.mimeType)
+        let row = try decodeRow(Fixtures.root.appendingPathComponent("rows/valid/no-mime-type.json"))
+        XCTAssertNil(row.mimeType)
     }
 }

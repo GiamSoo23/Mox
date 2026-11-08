@@ -5,12 +5,14 @@ on:
   pull_request:
     paths:
       - "desktop/macos/**"
+      - "shared/**"
       - ".editorconfig"
       - ".github/workflows/macos.yml"
   push:
     branches: [main]
     paths:
       - "desktop/macos/**"
+      - "shared/**"
       - ".editorconfig"
       - ".github/workflows/macos.yml"
 

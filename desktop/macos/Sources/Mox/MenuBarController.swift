@@ -5,13 +5,18 @@ import MoxCore
 /// Owns the NSStatusItem, its menu, and the popover-less interactions.
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
-    private let supabase: SupabaseService
+    private let supabase: SupabaseService?
+    private let deviceID: UUID
     private var current: CurrentFile?
+    /// uploaded_at of the last file this Mac received, kept across launches
+    /// so a file sent while the Mac was off still arrives (PROTOCOL.md §6).
+    private let lastHandledKey = "MoxLastHandledUploadedAt"
     private let hotkeyHuman: String
     private var lastStatus: String?
 
-    init(supabase: SupabaseService, hotkeyHuman: String) {
+    init(supabase: SupabaseService?, deviceID: UUID, hotkeyHuman: String) {
         self.supabase = supabase
+        self.deviceID = deviceID
         self.hotkeyHuman = hotkeyHuman
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
@@ -33,19 +38,28 @@ final class MenuBarController: NSObject {
         return img
     }
 
-    func update(current: CurrentFile?, notify: Bool) {
-        let didChange = current != self.current
+    /// Shows the current file, and downloads it when another device sent
+    /// something this Mac hasn't handled yet (PROTOCOL.md §6).
+    func update(current: CurrentFile?) {
         self.current = current
         rebuildMenu()
-        if let file = current, didChange, notify, file.uploadedFrom != "mac" {
-            tintBusy(false, accent: true)
-            autoSaveFromPhone(file)
+        guard let file = current, file.sourceDeviceId != deviceID else { return }
+        let defaults = UserDefaults.standard
+        guard let lastHandled = defaults.string(forKey: lastHandledKey) else {
+            // First run: remember what's there without downloading an old file.
+            defaults.set(file.uploadedAt, forKey: lastHandledKey)
+            return
         }
+        guard file.uploadedAt != lastHandled else { return }
+        defaults.set(file.uploadedAt, forKey: lastHandledKey)
+        tintBusy(false, accent: true)
+        autoSaveFromPhone(file)
     }
 
     /// Downloads a phone-sent file into ~/Downloads with a unique name and
     /// fires a notification on completion. Status line tracks progress.
     private func autoSaveFromPhone(_ file: CurrentFile) {
+        guard let supabase else { return }
         showStatus("Receiving \(file.originalName)…")
         let dest = uniqueDownloadsURL(for: file.originalName)
         Task {
@@ -125,7 +139,7 @@ final class MenuBarController: NSObject {
             title.isEnabled = false
             menu.addItem(title)
 
-            let sub = "\(humanSize(file.sizeBytes)) · from \(file.uploadedFrom)"
+            let sub = "\(humanSize(file.sizeBytes)) · from \(file.sourceName)"
             let subItem = NSMenuItem(title: sub, action: nil, keyEquivalent: "")
             subItem.isEnabled = false
             menu.addItem(subItem)
@@ -181,7 +195,7 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func saveToDownloads() {
-        guard let file = current else { return }
+        guard let file = current, let supabase else { return }
         let dest = FileManager.default
             .urls(for: .downloadsDirectory, in: .userDomainMask).first!
             .appendingPathComponent(file.originalName)
@@ -196,7 +210,7 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func saveAs() {
-        guard let file = current else { return }
+        guard let file = current, let supabase else { return }
         let panel = NSSavePanel()
         panel.nameFieldStringValue = file.originalName
         panel.canCreateDirectories = true
@@ -205,7 +219,7 @@ final class MenuBarController: NSObject {
             guard resp == .OK, let dest = panel.url else { return }
             Task {
                 do {
-                    try await self.supabase.downloadCurrent(to: dest)
+                    try await supabase.downloadCurrent(to: dest)
                     Notifier.show(title: "Saved", body: dest.path)
                 } catch {
                     Notifier.show(title: "Mox", body: error.localizedDescription)
@@ -226,10 +240,10 @@ final class MenuBarController: NSObject {
     }
 
     @objc private func copyShareLink() {
-        guard let file = current else { return }
+        guard current != nil, let supabase else { return }
         Task {
             do {
-                let url = try await supabase.signedDownloadURL(for: file.storagePath, expiresIn: 3600)
+                let url = try await supabase.signedDownloadURL(expiresIn: 3600)
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(url.absoluteString, forType: .string)
                 Notifier.show(title: "Mox", body: "Share link copied (1 h)")

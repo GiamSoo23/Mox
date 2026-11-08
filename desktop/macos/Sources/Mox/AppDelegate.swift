@@ -7,18 +7,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotkey = HotKeyManager()
     private var pollTimer: Timer?
     private var pollInterval: TimeInterval = 5
-    private var firstPollDone = false
 
     func applicationDidFinishLaunching(_ note: Notification) {
-        let config: Config
-        do {
-            config = try Config.load()
-        } catch {
-            fatalAlert(error.localizedDescription)
-            return
-        }
-        let supa = SupabaseService(config: config)
-        let bar = MenuBarController(supabase: supa, hotkeyHuman: config.hotkey.human)
+        let config = Config.load()
+        let deviceID = DeviceIdentity.id
+        let supa = config.settings.map { SupabaseService(settings: $0, deviceID: deviceID) }
+        let bar = MenuBarController(supabase: supa, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
 
         self.supabase = supa
         self.menuBar = bar
@@ -44,13 +38,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                            + "(OSStatus \(regStatus)). Use menu instead.")
         }
 
-        Task { await self.poll() }
+        guard let supa else {
+            bar.showStatus("Mox isn't set up yet. Add your project and Mox user to .env (see the README).")
+            return
+        }
+        Task {
+            do {
+                try await supa.checkSchema()
+            } catch {
+                await MainActor.run { bar.showError(error.localizedDescription) }
+            }
+            await self.poll()
+        }
         pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             Task { await self?.poll() }
         }
     }
 
     @objc private func handleSendSelection() {
+        guard let supabase else {
+            menuBar?.showError("Mox isn't set up yet.")
+            return
+        }
         menuBar?.showStatus("Hotkey pressed…")
         let paths: [String]
         do {
@@ -74,9 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menuBar?.showStatus("Uploading \((first as NSString).lastPathComponent)…")
         Task {
             do {
-                let row = try await supabase!.uploadFile(localPath: first, uploadedFrom: "mac")
+                let row = try await supabase.uploadFile(localPath: first)
                 await MainActor.run {
-                    self.menuBar?.update(current: row, notify: false)
+                    self.menuBar?.update(current: row)
                     self.menuBar?.tintBusy(false)
                     self.menuBar?.showStatus("Sent \(row.originalName)")
                     Notifier.show(title: "Sent",
@@ -95,11 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let supa = supabase else { return }
         do {
             let row = try await supa.fetchCurrent()
-            let firstRun = !firstPollDone
-            firstPollDone = true
-            await MainActor.run {
-                self.menuBar?.update(current: row, notify: !firstRun)
-            }
+            await MainActor.run { self.menuBar?.update(current: row) }
         } catch {
             // Network blip; ignore silently.
         }
