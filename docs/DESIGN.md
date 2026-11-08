@@ -53,11 +53,44 @@ exists. Then iPhone (v1.1), then Windows (v1.2). See [ROADMAP.md](ROADMAP.md).
 |---|---|---|---|---|---|
 | **macOS** | Native menu-bar app (Swift, AppKit) | Global hotkey on the Finder selection, menu item | Automatic: saved to `~/Downloads`, copied to the clipboard, notification | `.zip` on GitHub Releases. Unsigned, so first launch is right-click → Open | Exists (v1) |
 | **Windows** | Native tray app (C#, .NET 8) | Global hotkey on the Explorer selection, **Send to → Mox**, `mox send <file>` | Automatic: saved to Downloads, copied to the clipboard, toast notification | `.zip` on GitHub Releases. Unsigned, so SmartScreen warns once | New |
-| **Android** | Native app (Kotlin, Compose) | Share sheet → Mox | Automatic while the app is open: photos and videos to the gallery, everything else to Downloads, notification, tap to copy | APK on GitHub Releases (sideload) | Exists (v1) |
-| **iPhone** | **Apple Shortcuts** (see §4) | Share sheet → "Send to Mox" shortcut | On demand: run "Get from Mox" (widget, Back Tap or Siri), saves to Files or Photos and copies to the clipboard | iCloud shortcut links + signed `.shortcut` files on Releases | New |
+| **Android** | Native app (Kotlin, Compose) | Share sheet → Mox | Automatic, **also with the app closed** (listening service, §3.1): photos and videos to the Camera folder, everything else to Downloads, copied to the clipboard, notification | APK on GitHub Releases (sideload) | Exists (v1) |
+| **iPhone** | **Apple Shortcuts** (see §4) | Share sheet → "Send to Mox" shortcut | Notification through Web Push (candidate, §4.1) → one tap → save to Photos or Files, copy. Fallback: "Get from Mox" on demand | Shortcuts: iCloud links + signed `.shortcut` files. Web app: the pairing page, added to the home screen | New |
 
 macOS ↔ iPhone falls out of the matrix for free. AirDrop already covers that
 pair, so it isn't a priority, but nothing blocks it.
+
+### 3.1 Receiving in the background
+
+Every platform shares the same backend, protocol and event ("the row
+changed"). Only **the last step, waking the phone**, differs, because the
+two operating systems allow different things:
+
+```
+                        ┌→ Android: Mox keeps its own connection open (listening service)
+desktop uploads → Supabase           → saves and copies by itself, no tap
+                        └→ iPhone: Web Push → notification → one tap → save / copy
+```
+
+**Android: a listening service with a Realtime connection (#37).** A
+`specialUse` foreground service keeps one Supabase Realtime websocket open
+and reacts to changes to `mox.current_file`. That's faster than today's 5 s
+poll and lighter than polling in the background. On a change it downloads,
+saves (Camera or Downloads) and **copies to the clipboard itself**.
+
+- A spike on a Galaxy S23 (Android 16) showed Mox can write the clipboard
+  from the background, both from a plain broadcast and from a foreground
+  service. Android restricts background clipboard *reads*, not writes.
+- One-time setup: allow notifications, and allow unrestricted battery use,
+  a one-tap system dialog. Without it Samsung puts the app to sleep.
+- The "Mox is listening" notification is quiet, and on Android 13+ the
+  user can swipe it away while the service keeps running.
+
+| Alternative | Why not |
+|---|---|
+| Poll every 5 s in the service | Keeps the radio busy. Realtime idles with a small heartbeat |
+| WorkManager | 15-minute minimum interval: too slow |
+| Push through Firebase (FCM) | Needs the app built against one specific Firebase project, plus a sender holding its credentials. That breaks "same binaries for everyone, your own backend" unless Mox runs a central server |
+| ntfy / UnifiedPush | Works without recompiling, but every user has to install and set up a second app. In practice, ntfy does the same thing Mox's own service does (an open connection in a foreground service), so we build that into Mox instead |
 
 ## 4. Decision: iPhone support through Shortcuts, not a native app
 
@@ -82,17 +115,42 @@ saving files and setting the clipboard. Three shortcuts ship with Mox:
    the row.
 3. **Get from Mox:** fetches the current file, saves it, and copies it.
 
-**What we give up:** an iPhone can't receive in the background or get a
-notification when a file arrives. You pull the file when you want it, for
-example with a double tap on the back of the phone (Back Tap), a home-screen
-widget or Siri. **Experiment for v1.1:** [ntfy](https://ntfy.sh), a free push
-service with an iOS app, could deliver a notification when the desktop
-uploads, and tapping it would run "Get from Mox". That would give iPhone
-real notifications without a paid account. It's unverified, so it's listed
-as risk #8. The
-shortcuts are built in the Shortcuts app rather than written as code, so the
-repo versions them as signed exports (`shortcuts sign`) plus a written spec
-of each action.
+**Sending works like Android.** With "Show in Share Sheet" turned on, "Send
+to Mox" appears under **Share** in Photos, Files, Safari, WhatsApp and so on,
+and it accepts several items at once (packed with *Make Archive*). It shows
+up in the share sheet's action list rather than the row of app icons, which
+needs a native share extension. Marking it as a favorite puts it at the top
+of that list.
+
+The shortcuts are built in the Shortcuts app rather than written as code, so
+the repo versions them as signed exports (`shortcuts sign`) plus a written
+spec of each action.
+
+### 4.1 Receiving on iPhone
+
+iOS doesn't let any app run in the background. The only way to wake an
+iPhone is Apple's push service, and pushing to **your own** native app needs
+the paid account. And iOS doesn't let anything write the clipboard from the
+background, paid or not. So on iPhone, **receiving always takes at least one
+tap**.
+
+| Option | How it feels | Cost | Extra app |
+|---|---|---|---|
+| **A. Web Push to a Mox web app** | A real notification ("New file from your Mac"). Tapping it opens Mox with **Save to Photos** and **Copy** | Free | **No**: the pairing page, added to the home screen |
+| B. ntfy + Shortcuts | ntfy's notification; tapping it runs "Get from Mox" | Free | Yes (ntfy) |
+| C. Shortcuts only | No notification. Pull with Back Tap, a widget or Siri | Free | No |
+| D. Native app + Apple push | Best integration, still one tap | $99/year | No |
+
+**Candidate: A.** Since iOS 16.4, a web page added to the home screen can
+receive standard Web Push notifications, with no developer account. The
+pairing page (§7.2) grows into "Mox for iPhone". The push is sent from the
+user's own backend (a database trigger or Edge Function) or by the desktop
+app after uploading, so no third party is involved. Sending stays with the
+shortcut, because iOS can't share files *into* a web app.
+
+**Verify before v1.1 (risk #8):** how reliably Web Push arrives on iOS, and
+whether tapping the notification can lead straight to the saved file. If it
+falls short, B is the fallback, then C.
 
 ## 5. Decision: a native app on each desktop OS, not one cross-platform app
 
@@ -387,8 +445,8 @@ something: integration tests that never touch a real project.
 | 4 | How Shortcuts handles 50 MB uploads and fixed request headers | Try both early in the iPhone milestone. |
 | 5 | Warnings for unsigned binaries (Gatekeeper, SmartScreen, unknown APK sources) | Step-by-step instructions with screenshots in the install guide. |
 | 6 | The Mox user's credentials travel inside the QR | Show the QR only on request, document it, and offer Re-key (new password). |
-| 7 | Android receives only while the app is open | Keep it for v2. WorkManager or push is future work. |
-| 8 | iPhone notifications through ntfy (§4) are unverified: reliability, and whether tapping can launch a shortcut | Try it before v1.1. If it doesn't work, iPhone stays pull-only. |
+| 7 | Android receives only while the app is open | Listening service with a Realtime connection (§3.1, #37). Spike done: background clipboard writes work on Samsung |
+| 8 | Web Push on iOS (§4.1) is unverified: delivery reliability, and what tapping can open | Spike before v1.1. Fallbacks: ntfy, then pull-only Shortcuts |
 
 ## 13. Later
 
