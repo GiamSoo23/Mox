@@ -1,6 +1,6 @@
 # Mox v2: roadmap
 
-**Last updated:** 2026-11-07 · **Design:** [DESIGN.md](DESIGN.md)
+**Last updated:** 2026-11-08 · **Design:** [DESIGN.md](DESIGN.md)
 
 This is the delivery plan for the v2 design: what gets built, in what order,
 and how it's split into pull requests and commits. Every commit listed here
@@ -13,17 +13,31 @@ it isn't.
 > app, the backend, the shared protocol, CI and docs. iPhone (v1.1) and
 > Windows (v1.2) start only after v1.0 ships.
 
+## Status
+
+| Milestone | Status |
+|---|---|
+| M1 · Baseline and open source | ✅ done, tag [`v0.1.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.1.0) |
+| M2 · Quality gates and CI | ✅ done, tag [`v0.2.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.2.0) |
+| M3 · Backend v2 | ✅ done, tag [`v0.3.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.3.0); migrations applied to the live project |
+| M4 · Runtime config and security | in progress |
+| M5–M8, v1.1, v1.2 | planned |
+
+For finished milestones, the tables below show the **original plan**. The
+real commits are in the history, and what changed along the way is noted
+under each milestone. Bugs found so far: [docs/BUGS.md](BUGS.md).
+
 ## At a glance
 
 | | v1.0: open source, Mac ↔ Android | v1.1: iPhone | v1.2: Windows | **Total** |
 |---|:-:|:-:|:-:|:-:|
 | Milestones | 8 | 1 | 1 | **10** |
-| Pull requests | 26 | 2 | 5 | **33** |
-| Commits | 66 | 6 | 13 | **85** |
+| Issues / PRs | 30 | 3 | 5 | **38** |
+| Commits | 76 | 10 | 13 | **99** |
 
 **Submission line for MLH: v1.0.** At that point the repo has tests on
 every layer, CI on every PR, automated releases (since M5), a deployed pairing page,
-multi-file sending, and keys that are no longer in the code. v1.1 and v1.2
+multi-file sending, background receiving on Android, and keys that are no longer in the code. v1.1 and v1.2
 can stay as open milestones with issues already written, which shows the
 roadmap.
 
@@ -31,16 +45,16 @@ roadmap.
 
 | Area | Label | Commits | Language / tools |
 |---|---|:-:|---|
-| macOS | `area:macos` | 18 | Swift, AppKit, XCTest |
-| Android | `area:android` | 13 | Kotlin, Compose, JUnit |
-| CI/CD and quality | `area:ci` | 13 | GitHub Actions, Docker, linters, contract tests |
-| Docs and repo | `area:docs` | 12 | Markdown, Mermaid |
+| macOS | `area:macos` | 19 | Swift, AppKit, XCTest |
+| Android | `area:android` | 18 | Kotlin, Compose, JUnit |
+| Docs and repo | `area:docs` | 15 | Markdown, Mermaid |
+| Backend | `area:backend` | 12 | SQL, Supabase CLI, pgTAP |
 | Windows | `area:windows` | 11 | C#, .NET 8, xUnit |
-| Backend | `area:backend` | 8 | SQL, Supabase CLI, pgTAP |
-| iPhone | `area:ios` | 4 | Apple Shortcuts |
+| CI/CD and quality | `area:ci` | 10 | GitHub Actions, Docker, contract tests |
+| Web (pairing page, iPhone web app) | `area:web` | 5 | HTML, CSS, JS, Web Push |
+| iPhone | `area:ios` | 5 | Apple Shortcuts |
 | Shared protocol | `area:shared` | 4 | Markdown, JSON fixtures |
-| Pairing page | `area:web` | 2 | HTML, CSS, JS |
-| **Total** | | **85** | |
+| **Total** | | **99** | |
 
 ---
 
@@ -96,8 +110,17 @@ CI comes early so that every later PR shows a green check.
 | [#8](https://github.com/GiamSoo23/Mox/issues/8) | `shared/protocol` | `docs(shared): write protocol spec for all clients` · `test(shared): add JSON fixtures for rows` |
 | [#9](https://github.com/GiamSoo23/Mox/issues/9) | `ci/backend` | `ci: run database tests against Supabase in Docker` |
 
-**11 commits.** This is where Docker first shows up. The bundle columns go
+**11 commits planned.** This is where Docker first shows up. The bundle columns go
 in now so the multi-file milestone doesn't need another migration.
+
+**What actually happened:**
+- #9 (database tests in CI) went **before** #7, so schema v2 was written
+  against a suite that already ran in CI.
+- #7 became four **additive** migrations in a dedicated `mox` schema, with
+  #40's owner-only design. v1 keeps working until #49 removes it.
+- Writing it uncovered a real bug, #48, which was fixed, applied to the
+  live project and verified on a phone.
+- #34, #35 and #40 move to M4: they finish once the apps speak v2.
 
 ### Milestone 4: Runtime config and security · size L
 
@@ -110,8 +133,15 @@ more credentials in the code.
 | [#11](https://github.com/GiamSoo23/Mox/issues/11) | `macos/keychain-config` | `feat(macos): store project URL and key in Keychain` · `refactor(macos): rename anon key to publishable key` · `feat(macos): adopt schema v2` |
 | [#12](https://github.com/GiamSoo23/Mox/issues/12) | `android/runtime-config` | `refactor(android): introduce MoxBackend interface` · `feat(android): encrypted runtime config store` · `feat(android): remove hard-coded credentials and add "not paired" screen` · `feat(android): adopt schema v2` · `test(android): unit tests against shared fixtures` |
 | [#13](https://github.com/GiamSoo23/Mox/issues/13) | `test/contract` | `test: contract tests against local Supabase` · `ci: run contract tests in Docker` |
+| [#49](https://github.com/GiamSoo23/Mox/issues/49) | `backend/drop-v1` | `feat(backend): drop the v1 schema and policies` · `test(backend): anon has no access to Mox objects` |
+| [#52](https://github.com/GiamSoo23/Mox/issues/52) | `docs/changelog` | `docs: add a CHANGELOG and a bug log` · `docs: record that #48 was reproduced on a real device` · `docs: mark #48 as fixed and verified on the device` |
 
-**12 commits.**
+**17 commits.** Also closes #34, #35, #36 and #40 (the client side).
+
+**Order matters:** once Android speaks v2 it can't talk to a v1 Mac. #12 is
+split into a refactor + tests PR (no behavior change, mergeable anytime)
+and the v2 switch. The v2 switches of #11 and #12 land back to back, then
+#49 removes v1.
 
 ### Milestone 5: QR pairing and first release (Mac → Android) · size M
 
@@ -135,20 +165,28 @@ first pre-release.
 - The pairing page is the project's "deploy". In v1.0 it only hands off to
   Android. The iPhone hand-off arrives in v1.1.
 
-### Milestone 6: Multi-file bundles · size M
+### Milestone 6: Multi-file and background receiving · size L
 
-Send several files (or a folder) at once. The sender packs them into an
-uncompressed zip marked `kind = bundle`, and the receiver unpacks it so you
-see the original files. See DESIGN.md §9.
+Two changes you notice in daily use:
+
+- **Several files at once** (or a folder). The sender packs them into an
+  uncompressed zip marked `kind = bundle`, and the receiver unpacks it so
+  you see the original files. See DESIGN.md §9.
+- **Android receives with the app closed** and copies to the clipboard by
+  itself, through a listening service with a Realtime connection. See
+  DESIGN.md §3.1. The spike already showed background clipboard writes
+  work on Samsung.
 
 | Issue | Branch | Commits |
 |---|---|---|
 | [#18](https://github.com/GiamSoo23/Mox/issues/18) | `shared/bundle-spec` | `docs(shared): bundle format spec and fixtures` |
 | [#19](https://github.com/GiamSoo23/Mox/issues/19) | `macos/bundles` | `feat(macos): send multiple Finder items and folders as a bundle` · `feat(macos): extract received bundles into a Downloads folder and copy all files` · `test(macos): bundle round-trip, zip-slip and size-limit tests` |
-| [#20](https://github.com/GiamSoo23/Mox/issues/20) | `android/bundles` | `feat(android): share multiple files as a bundle` · `feat(android): save received photos and videos to the gallery` · `feat(android): extract received bundles` · `test(android): bundle round-trip, zip-slip and size-limit tests` |
+| [#20](https://github.com/GiamSoo23/Mox/issues/20) | `android/bundles` | `feat(android): share multiple files as a bundle` · `feat(android): extract received bundles` · `test(android): bundle round-trip, zip-slip and size-limit tests` |
 | [#21](https://github.com/GiamSoo23/Mox/issues/21) | `docs/bundles` | `docs: document multi-file sending` |
+| [#43](https://github.com/GiamSoo23/Mox/issues/43) | `android/camera-folder` | `feat(android): save received photos and videos to the Camera folder` ✅ |
+| [#37](https://github.com/GiamSoo23/Mox/issues/37) | `android/background-receiving` | `feat(backend): publish mox.current_file to Realtime` · `feat(android): listening service with a Realtime connection` · `feat(android): save and copy to the clipboard from the service` · `feat(android): battery-optimization prompt and listening toggle` · `test(android): Realtime message parsing` |
 
-**9 commits.** Good material for the demo video: 5 photos selected in Finder
+**14 commits** (#43 already merged). Good material for the demo video: 5 photos selected in Finder
 show up as 5 photos in the phone's gallery.
 
 ### Milestone 7: Setup wizard · size M
@@ -175,21 +213,24 @@ commits.
 since M5, so the tag alone publishes v1.0. Record the demo video and
 screenshots here (they go into the README through GitHub's editor).
 
-> **v1.0 total: 26 PRs · 66 commits** (11 + 4 + 11 + 12 + 11 + 9 + 5 + 3).
+> **v1.0 total: 30 issues · 76 commits** (11 + 4 + 11 + 17 + 11 + 14 + 5 + 3).
 
 ---
 
 ## v1.1: iPhone (Shortcuts) · size M
 
-Before starting, try risk #4 (50 MB uploads from Shortcuts) and the ntfy
-notification experiment (risk #8). Neither is a commit.
+Sending uses a shortcut in the share sheet, and receiving uses Web Push to
+a Mox web app (DESIGN.md §4.1). Before starting, two spikes, neither of them
+a commit: risk #4 (50 MB uploads from Shortcuts) and risk #8 (Web Push
+reliability on iOS).
 
 | Issue | Branch | Commits |
 |---|---|---|
 | [#27](https://github.com/GiamSoo23/Mox/issues/27) | `ios/shortcuts` | `feat(ios): "Send to Mox" share-sheet shortcut, multi-file aware` · `feat(ios): "Get from Mox" shortcut with bundle extraction` · `feat(ios): "Mox Setup" shortcut and pairing hand-off` · `docs(ios): install guide and limitations` |
 | [#28](https://github.com/GiamSoo23/Mox/issues/28) | `ci/ios-release` | `feat(web): pairing page hands off to Shortcuts on iOS` · `ci: sign shortcuts and attach to releases` |
+| [#54](https://github.com/GiamSoo23/Mox/issues/54) | `ios/web-push` | `feat(web): Mox web app with Web Push subscription` · `feat(backend): send Web Push when the file changes` · `feat(web): save and copy from the notification` · `docs(ios): receiving on iPhone` |
 
-**6 commits.**
+**10 commits.**
 
 ## v1.2: Windows · size L
 
@@ -213,7 +254,7 @@ flowchart LR
     M2 --> M3["M3 Backend v2"]
     M3 --> M4["M4 Runtime config"]
     M4 --> M5["M5 QR pairing<br/>+ first release"]
-    M5 --> M6["M6 Multi-file"]
+    M5 --> M6["M6 Multi-file +<br/>background receiving"]
     M6 --> M7["M7 Setup wizard"]
     M7 --> M8["M8 Release v1.0"]
     M8 --> I["v1.1 iPhone"]
