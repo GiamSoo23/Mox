@@ -20,8 +20,9 @@ the most common case — *"I just need this one file on my other device"*:
   on the clipboard, ready to `⌘V`.
 
 It's a native app on each side — Swift/AppKit and Kotlin/Jetpack Compose —
-that talk to each other through a private Supabase project. No custom server,
-no third-party SDKs on either client, about 1,700 lines of code in total.
+that talk to each other through **your own** Supabase project. No custom
+server, no third-party SDKs on either client. **Your files never pass through
+anyone else's servers** (see [Privacy and your data](#privacy-and-your-data)).
 
 <!--
   DEMO: record a 15–30 s screen capture (Mac hotkey → phone notification → paste)
@@ -177,25 +178,44 @@ Most of the work wasn't the networking. It was fitting into what each OS allows:
 
 ---
 
+## Privacy and your data
+
+**Mox has no servers.** Each person runs Mox on **their own** Supabase
+project (a free one is enough), and their files go only between their own
+devices and that project.
+
+- **The maintainers never see, store or transmit your files**, or any other
+  data of yours. There's no central account, database or relay.
+- **You're responsible for your project and what you send through it**,
+  including following [Supabase's terms](https://supabase.com/terms).
+- What the project shares with everyone handles **no user data**:
+  - **The code**, under the [MIT license](LICENSE), provided "as is",
+    without warranty.
+  - **The pairing page** on GitHub Pages: static files. The pairing details
+    travel in the part of the link after `#`, which browsers never send to
+    a server.
+  - **The downloads** on GitHub Releases: the apps only, built in CI with no
+    credentials inside. A downloaded Mox doesn't know any project until you
+    pair it with yours.
+
 ## Security model
 
-Mox is a **single-user** tool. Both clients ship with the project's public
-(anon / publishable) key, and the Row Level Security policies in
-[the schema](backend/supabase/migrations/20260526000000_initial_schema.sql) give that key full access to the one table
-and the one bucket. **Anyone with a build of the app can read and replace the
-current file**, so builds aren't meant to be shared.
-
-What it does do:
-
-- The bucket is private, and files are only reachable through signed URLs that expire.
-- File size is checked by each client and capped by the bucket. The bucket allows
-  500 MB, but the Supabase free plan rejects uploads over 50 MB
-  ([#35](https://github.com/GiamSoo23/Mox/issues/35)).
-- The service-role (`sb_secret_…`) key is never used by a client.
-- On the Mac, credentials live in a `.env` file that is git-ignored.
-
-The path to multi-user is Supabase Auth plus per-user RLS
-(`using (owner = auth.uid())`), with one row and one storage prefix per user.
+- **Your own project, your own keys.** Clients only ever hold the
+  publishable key (`sb_publishable_…`), never the secret one, and it isn't
+  in the source code: it comes from git-ignored local configuration today,
+  and from the pairing QR in v2 ([#12](https://github.com/GiamSoo23/Mox/issues/12)). A key that was once
+  committed has been rotated and returns `401` ([#36](https://github.com/GiamSoo23/Mox/issues/36)), and CI scans
+  every PR for secrets ([#59](https://github.com/GiamSoo23/Mox/issues/59)).
+- **Owner-only data (schema v2).** v2 doesn't trust the key alone: Row Level
+  Security lets in exactly one dedicated Mox user, the owner, so the
+  publishable key by itself reads nothing. That keeps Mox safe even inside a
+  project that also runs a public website ([#40](https://github.com/GiamSoo23/Mox/issues/40)). The current apps
+  still use the v1 schema until they move to v2 ([#11](https://github.com/GiamSoo23/Mox/issues/11),
+  [#12](https://github.com/GiamSoo23/Mox/issues/12)).
+- **Private storage.** Files are only reachable through short-lived signed
+  URLs, and the bucket is capped at 50 MB per file, the free plan's limit.
+- **Tested.** pgTAP tests check who can read and write what, on every
+  backend PR ([backend/README.md](backend/README.md#tests)).
 
 ## Known limitations and next steps
 
