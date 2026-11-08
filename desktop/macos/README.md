@@ -50,15 +50,39 @@ you need to send several files at once.
 
 ## Configuration
 
-`.env` keys (loaded from `$MOX_ENV`, `~/.config/mox/.env`, `./.env`, or
-the app bundle's `Resources/`):
+Mox reaches **your own** Supabase project as the Mox user (see
+[backend/README.md](../../backend/README.md#making-yourself-the-owner)). It
+keeps those settings in the **login Keychain**, readable only while the Mac
+is unlocked and never synced.
 
-| key                 | purpose                                      |
-| ------------------- | -------------------------------------------- |
-| `SUPABASE_URL`      | project URL                                  |
-| `SUPABASE_ANON_KEY` | anon JWT                                     |
-| `MOX_HOTKEY`        | (optional) hotkey, default `cmd+shift+m`     |
-| `MOX_POLL_SECONDS`  | (optional) poll interval, default `5`        |
+For development you can put them in a `.env` (copy
+[.env.example](.env.example)). It's read at launch from `$MOX_ENV`,
+`~/.config/mox/.env`, the current directory, or the app bundle, and a
+complete `.env` is copied into the Keychain:
+
+| key                        | purpose                                        |
+| -------------------------- | ---------------------------------------------- |
+| `SUPABASE_URL`             | project URL                                    |
+| `SUPABASE_PUBLISHABLE_KEY` | publishable key (`SUPABASE_ANON_KEY` also works) |
+| `MOX_USER_EMAIL`           | the Mox user's email                           |
+| `MOX_USER_PASSWORD`        | the Mox user's password                        |
+| `MOX_HOTKEY`               | (optional) hotkey, default `cmd+shift+m`       |
+| `MOX_POLL_SECONDS`         | (optional) poll interval, default `5`          |
+
+## Pairing a phone
+
+Menu bar icon → **Pair a Phone…** shows a QR code. Scan it with the phone's
+camera: the [pairing page](https://giamsoo23.github.io/Mox/pair/) installs
+Mox if needed and hands it the settings. The code contains the Mox user's
+password, so the window stays out of screenshots and screen sharing.
+
+## Tests
+
+`MoxCore` (configuration, the protocol client, models, the pairing link)
+has XCTest suites in `Tests/MoxCoreTests`, several of them driven by the
+shared fixtures in `shared/fixtures/`. XCTest needs Xcode, so CI runs them
+(`swift test`) on every PR. With only the Command Line Tools installed,
+`swift build` still works.
 
 ## Lint
 
