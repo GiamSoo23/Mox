@@ -49,18 +49,49 @@ npx supabase db reset    # recreate the database from the migrations
 npx supabase stop
 ```
 
-## Schema overview (v1)
+## Schema
 
-- **Storage bucket `mox`:** private. The bucket allows 500 MB, but the
-  Supabase free plan rejects uploads over 50 MB
-  ([#35](https://github.com/GiamSoo23/Mox/issues/35)). Each upload is stored
-  as `current.<ext>`.
-- **Table `public.current_file`:** exactly one row (`id = 1`) describing
-  whatever is currently in the bucket. Both clients poll it every few
-  seconds to notice a new file from the other device.
+### v2: the `mox` schema
 
-Schema v2 is planned in [docs/DESIGN.md §8](../docs/DESIGN.md) and tracked
-in [#7](https://github.com/GiamSoo23/Mox/issues/7).
+Migrations `20261107*` add schema v2 (design: [docs/DESIGN.md §8](../docs/DESIGN.md)):
+
+- **`mox.meta`:** one row with `schema_version` (2) and `owner_id`, the only
+  auth user allowed to use Mox.
+- **`mox.current_file`:** the one slot: name, MIME type, size (up to 50 MB),
+  `kind` (`file` / `bundle`), `item_count`, `source_platform`,
+  `source_device_id` and `uploaded_at` (refreshed on every replace).
+- **Storage:** bucket `mox`, capped at 50 MB, holds the file as `current`.
+- **Access:** row level security on everything, and only the owner gets in.
+  The anon role has no access to v2, so a public publishable key (common
+  when the project also runs a website) can't read your files.
+
+### Making yourself the owner
+
+The setup wizard (#22) will do this for you. Until then, by hand:
+
+1. **Authentication → Users → Add user → Create new user**. Use any email
+   and a long random password, and tick **Auto Confirm User**.
+2. In the SQL editor, with that user's UUID:
+   ```sql
+   update mox.meta set owner_id = '<user-uuid>' where id = 1;
+   ```
+3. **Project Settings → API → Exposed schemas**: add `mox`.
+
+### v1 (still present)
+
+`public.current_file` and the `current.<ext>` objects are kept so apps that
+haven't been updated keep working. They'll be removed once both apps speak
+v2 ([#49](https://github.com/GiamSoo23/Mox/issues/49)).
+
+## Tests
+
+pgTAP suites in `supabase/tests/database/` cover the constraints and,
+above all, who can read and write what. CI runs them against a throwaway
+stack on every PR that touches `backend/`. Locally (needs Docker):
+
+```bash
+npx supabase start && npx supabase test db
+```
 
 ## Rotating credentials
 

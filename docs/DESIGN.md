@@ -157,7 +157,8 @@ flowchart TD
     D --> E["Create project<br/>POST /v1/projects"]
     E --> F["Wait until healthy<br/>(a few minutes)"]
     F --> G["Apply Mox migrations"]
-    G --> H["Fetch publishable key"]
+    G --> G2["Create the Mox user<br/>and set it as owner"]
+    G2 --> H["Fetch publishable key"]
     C --> I{"Schema present and<br/>up to date?"}
     I -- "No" --> G
     I -- "Yes" --> J
@@ -169,8 +170,13 @@ flowchart TD
   suggests a scoped token over a classic one.
 - The free plan allows a limited number of active projects. If creating one
   fails, the wizard falls back to "use an existing project".
-- Either path ends with the same check: read `mox_meta.schema_version` and
+- Either path ends with the same check: read `mox.meta.schema_version` and
   migrate if it's missing or old. Running it again is harmless.
+- **Mox doesn't rely on the anon role** (#40). The wizard creates one
+  dedicated auth user, with a random email and password, and records it as
+  `mox.meta.owner_id`. Row level security only lets that user in. That's
+  what makes it safe to install Mox inside a project another app already
+  uses, where the publishable key is often public.
 
 ### 7.2 Pairing a phone
 
@@ -179,7 +185,7 @@ page. The configuration goes in the **URL fragment**, which browsers never
 send to a server:
 
 ```
-https://<owner>.github.io/Mox/pair/#v=1&u=<project-url>&k=<publishable-key>&n=<desktop-name>
+https://<owner>.github.io/Mox/pair/#v=1&u=<project-url>&k=<publishable-key>&e=<mox-user-email>&p=<mox-user-password>&n=<desktop-name>
 ```
 
 ```mermaid
@@ -201,19 +207,27 @@ sequenceDiagram
     end
     U->>P: Tap "Finish pairing"
     P->>A: Android: mox://pair?… · iPhone: shortcuts://run-shortcut?name=Mox%20Setup&input=text&text=…
-    A->>A: Validate payload, store config, create device id
+    A->>A: Validate payload, sign in as the Mox user, store config, create device id
     A-->>U: "Paired with Gregory's MacBook"
 ```
 
 - The phone app needs no camera code. The system camera reads the QR and
   opens the page. If that doesn't work, you can paste the link by hand.
-- **The QR is a secret.** Whoever scans it can read and replace your current
-  file. The desktop only shows it on request. "Re-key" in the wizard rotates
-  the publishable key, and then every device pairs again.
+- **The QR is a secret.** It carries the Mox user's credentials, so whoever
+  scans it can read and replace your current file. The desktop only shows it
+  on request. "Re-key" in the wizard changes that user's password, and then
+  every device pairs again.
+- Each device signs in with those credentials and keeps its own session.
+  Sharing one refresh token wouldn't work, because Supabase rotates refresh
+  tokens on every use.
 
 ## 8. Backend v2 and the shared protocol
 
 ### 8.1 Schema
+
+Everything v2 lives in a dedicated Postgres schema, **`mox`**, and only the
+owner (§7.1) can read or write it. Other apps' tables in the same project
+are never touched (#40).
 
 ```mermaid
 erDiagram
@@ -236,6 +250,7 @@ erDiagram
     MOX_META {
         int id PK "always 1"
         int schema_version "checked by every client"
+        uuid owner_id "the one auth user allowed in"
     }
 ```
 
@@ -247,7 +262,10 @@ Changes from v1, each one a migration managed by the Supabase CLI:
 | The object is always named `current` (no extension) | Fixes the v1 bug where a new extension left the old `current.<ext>` behind. The extension comes from `original_name` when saving. |
 | 50 MB limit on the bucket and in a `CHECK` | Matches the free plan. |
 | New `kind` (`file` / `bundle`) and `item_count` | Multi-file sending (§9). Only bundles are unpacked, so a `.zip` you send on purpose arrives as a `.zip`. |
-| New `mox_meta.schema_version` | Clients refuse to run against an incompatible schema and say why. |
+| New `mox.meta` with `schema_version` and `owner_id` | Clients refuse to run against an incompatible schema and say why. The owner is the only user the policies let in. |
+| Everything in a `mox` schema, owner-only, no anon access | Safe inside a project shared with another app (#40). |
+| `uploaded_at` refreshed by a trigger on every replace | The upsert doesn't send it, so before the trigger it kept the first upload's time and Android missed files (#48). |
+| **Additive migration:** v1's `public.current_file` stays until both apps use v2 | Applying v2 doesn't break apps that haven't been updated yet. v1's anon storage access is narrowed to `current.<ext>`, so it can't reach v2's object. Cleanup: #49. |
 | `schema.sql` becomes `backend/supabase/migrations/*.sql` | Versioned, testable with `supabase test db` (pgTAP), and the wizard can apply it. |
 
 **Inactivity pause:** free Supabase projects pause after a week with no
@@ -261,8 +279,12 @@ job is a fallback we can add, not part of the plan.
 `shared/PROTOCOL.md` becomes the single contract for all four clients. It
 contains:
 
+- signing in as the Mox user (`POST /auth/v1/token?grant_type=password`)
+  and refreshing the session,
 - the five REST calls (read row, upload object, upsert row, sign URL,
-  download) with exact headers,
+  download) with exact headers: `Authorization: Bearer <access token>`, plus
+  `Accept-Profile: mox` / `Content-Profile: mox` so PostgREST uses the `mox`
+  schema,
 - the row's JSON format and what each field allows,
 - the pairing payload v1 (§7.2), with rules for validating it,
 - `shared/fixtures/*.json`: valid and invalid rows and payloads. **The test
@@ -364,7 +386,7 @@ something: integration tests that never touch a real project.
 | 3 | Applying migrations through the Management API (SQL query endpoint) | Same: try it first. Fallback: the user pastes the SQL into the dashboard. |
 | 4 | How Shortcuts handles 50 MB uploads and fixed request headers | Try both early in the iPhone milestone. |
 | 5 | Warnings for unsigned binaries (Gatekeeper, SmartScreen, unknown APK sources) | Step-by-step instructions with screenshots in the install guide. |
-| 6 | The publishable key travels inside the QR | Show the QR only on request, document it, and offer Re-key. |
+| 6 | The Mox user's credentials travel inside the QR | Show the QR only on request, document it, and offer Re-key (new password). |
 | 7 | Android receives only while the app is open | Keep it for v2. WorkManager or push is future work. |
 | 8 | iPhone notifications through ntfy (§4) are unverified: reliability, and whether tapping can launch a shortcut | Try it before v1.1. If it doesn't work, iPhone stays pull-only. |
 
@@ -374,7 +396,7 @@ something: integration tests that never touch a real project.
   key, and clients would encrypt before uploading, so Supabase only ever
   stores ciphertext. Shortcuts has no AES action, which blocks this for
   iPhone.
-- Supabase Auth with one identity per device, instead of a shared key.
+- One auth identity per device, instead of one shared Mox user.
 - A native iOS app with a share extension, if the paid developer account happens.
 - A short history (the last N files) instead of a single slot.
 
