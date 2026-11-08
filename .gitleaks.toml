@@ -1,0 +1,19 @@
+# gitleaks configuration: the default rules, plus one narrow exception.
+title = "Mox"
+
+[extend]
+useDefault = true
+
+# The shared test fixtures contain obviously fake credentials on purpose.
+# Both conditions must hold (AND): the file is under shared/fixtures/ AND
+# the value is one of the known fake ones. A real secret added there would
+# still be caught.
+[[allowlists]]
+description = "Fake credentials in the shared test fixtures"
+condition = "AND"
+paths = ['''^shared/fixtures/''']
+regexes = [
+  '''correct-horse-battery-staple-42''',
+  '''EXAMPLEKEY''',
+  '''\.example\.signature''',
+]
