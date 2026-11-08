@@ -31,13 +31,21 @@ data class CurrentFile(
         fun fromJson(o: JSONObject) = CurrentFile(
             storagePath = o.getString("storage_path"),
             originalName = o.getString("original_name"),
-            mimeType = o.optString("mime_type").ifEmpty { null },
+            mimeType = o.stringOrNull("mime_type"),
             sizeBytes = o.getLong("size_bytes"),
             uploadedFrom = o.getString("uploaded_from"),
             uploadedAt = o.getString("uploaded_at")
         )
     }
 }
+
+/**
+ * The string at [key], or null when it's missing, JSON null or empty.
+ * Uses isNull rather than optString: on Android, optString turns JSON null
+ * into the string "null" (#56).
+ */
+internal fun JSONObject.stringOrNull(key: String): String? =
+    if (isNull(key)) null else getString(key).ifEmpty { null }
 
 /**
  * Thin REST client for Supabase Storage + PostgREST.
