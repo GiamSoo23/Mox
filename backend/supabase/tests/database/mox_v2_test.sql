@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(27);
 
 -- Two users: the Mox owner, and a stranger (e.g. a user of another app
 -- living in the same Supabase project).
@@ -138,6 +138,10 @@ set local role anon;
 select throws_ok(
     $$ insert into storage.objects (bucket_id, name) values ('mox', 'current') $$,
     '42501', null, 'anon cannot write the v2 object "current", even with the v1 policies'
+);
+select lives_ok(
+    $$ insert into storage.objects (bucket_id, name) values ('mox', 'current.jpg') $$,
+    'anon can still write a v1 object (current.<ext>), so v1 apps keep working'
 );
 reset role;
 
