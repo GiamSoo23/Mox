@@ -32,8 +32,8 @@ under each milestone. Bugs found so far: [docs/BUGS.md](BUGS.md).
 | | v1.0: open source, Mac ↔ Android | v1.1: iPhone | v1.2: Windows | **Total** |
 |---|:-:|:-:|:-:|:-:|
 | Milestones | 8 | 1 | 1 | **10** |
-| Issues / PRs | 30 | 3 | 5 | **38** |
-| Commits | 76 | 10 | 13 | **99** |
+| Issues / PRs | 31 | 3 | 5 | **39** |
+| Commits | 78 | 10 | 13 | **101** |
 
 **Submission line for MLH: v1.0.** At that point the repo has tests on
 every layer, CI on every PR, automated releases (since M5), a deployed pairing page,
@@ -47,14 +47,14 @@ roadmap.
 |---|---|:-:|---|
 | macOS | `area:macos` | 19 | Swift, AppKit, XCTest |
 | Android | `area:android` | 18 | Kotlin, Compose, JUnit |
-| Docs and repo | `area:docs` | 15 | Markdown, Mermaid |
+| Docs and repo | `area:docs` | 16 | Markdown, Mermaid |
 | Backend | `area:backend` | 12 | SQL, Supabase CLI, pgTAP |
 | Windows | `area:windows` | 11 | C#, .NET 8, xUnit |
-| CI/CD and quality | `area:ci` | 10 | GitHub Actions, Docker, contract tests |
+| CI/CD and quality | `area:ci` | 11 | GitHub Actions, Docker, contract tests |
 | Web (pairing page, iPhone web app) | `area:web` | 5 | HTML, CSS, JS, Web Push |
 | iPhone | `area:ios` | 5 | Apple Shortcuts |
 | Shared protocol | `area:shared` | 4 | Markdown, JSON fixtures |
-| **Total** | | **99** | |
+| **Total** | | **101** | |
 
 ---
 
@@ -135,8 +135,9 @@ more credentials in the code.
 | [#13](https://github.com/GiamSoo23/Mox/issues/13) | `test/contract` | `test: contract tests against local Supabase` · `ci: run contract tests in Docker` |
 | [#49](https://github.com/GiamSoo23/Mox/issues/49) | `backend/drop-v1` | `feat(backend): drop the v1 schema and policies` · `test(backend): anon has no access to Mox objects` |
 | [#52](https://github.com/GiamSoo23/Mox/issues/52) | `docs/changelog` | `docs: add a CHANGELOG and a bug log` · `docs: record that #48 was reproduced on a real device` · `docs: mark #48 as fixed and verified on the device` |
+| [#59](https://github.com/GiamSoo23/Mox/issues/59) | `ci/gitleaks` | `chore: record the revoked key as a reviewed gitleaks finding` · `ci: scan the full history for secrets on every PR` ✅ |
 
-**17 commits.** Also closes #34, #35, #36 and #40 (the client side).
+**19 commits.** Also closes #34, #35 and #40 (the client side). #36 (key in the code) is already closed: credentials moved to `local.properties` (#58), the key was rotated, and gitleaks runs in CI (#59).
 
 **Order matters:** once Android speaks v2 it can't talk to a v1 Mac. #12 is
 split into a refactor + tests PR (no behavior change, mergeable anytime)
@@ -213,7 +214,7 @@ commits.
 since M5, so the tag alone publishes v1.0. Record the demo video and
 screenshots here (they go into the README through GitHub's editor).
 
-> **v1.0 total: 30 issues · 76 commits** (11 + 4 + 11 + 17 + 11 + 14 + 5 + 3).
+> **v1.0 total: 31 issues · 78 commits** (11 + 4 + 11 + 19 + 11 + 14 + 5 + 3).
 
 ---
 
