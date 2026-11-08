@@ -11,7 +11,7 @@ Last updated: 2026-11-07.
 
 | Issue | Bug | Area | How it was found | Status |
 |---|---|---|---|---|
-| [#48](https://github.com/GiamSoo23/Mox/issues/48) | `uploaded_at` isn't refreshed when the file is replaced, so Android can miss files | backend | Reviewing the upsert while writing schema v2 | Fixed in the database (0.3.0). Live API confirmation pending (#13) |
+| [#48](https://github.com/GiamSoo23/Mox/issues/48) | `uploaded_at` isn't refreshed when the file is replaced, so Android can miss files | backend | Reviewing the upsert while writing schema v2, then **reproduced on a real phone** | Fixed in the database (0.3.0). Not yet applied to the live project |
 | [#34](https://github.com/GiamSoo23/Mox/issues/34) | Old storage object left behind when the extension changes | backend | Code review for the README | Fixed by design in v2. Done once clients use v2 |
 | [#35](https://github.com/GiamSoo23/Mox/issues/35) | Uploads over 50 MB fail; docs promised 500 MB | backend, docs | Checking the free plan's limits | Cap and checks in 0.3.0. Client checks pending |
 | [#36](https://github.com/GiamSoo23/Mox/issues/36) | Supabase key committed in Android `Config.kt` | security | Review before making the repo public | Open, fixed by #12 + key rotation |
@@ -45,6 +45,13 @@ replace, on the v1 and v2 tables.
 checks that the timestamp changes. v2 also changes how clients dedupe: they
 compare the sending device's id plus `uploaded_at`, not a file path
 ([PROTOCOL.md §6](../shared/PROTOCOL.md)).
+
+**Confirmed in real use.** While testing #45 on a Galaxy S23, the phone's
+stored key turned out to be `current.pdf|2026-05-27T03:32:41…`: `uploaded_at`
+had been stuck at the very first upload for over five months. A `.jpeg`
+arrived, and then a second `.jpeg` was silently ignored, exactly as
+predicted. The bug was found by reading the code, then confirmed on the
+device.
 
 **Lesson.** "Upsert" doesn't mean "every column is rewritten". Server-side
 defaults only apply on insert.
