@@ -34,7 +34,7 @@ Then, from **Project Settings → API Keys**, copy the project URL and the
 **publishable** key into:
 
 - `desktop/macos/.env` (copy `desktop/macos/.env.example` first)
-- `mobile/android/local.properties` (`mox.supabaseUrl=…`, `mox.supabaseKey=…`)
+- the Android app gets them by scanning the Mac's pairing QR code
 
 Never put the secret (`sb_secret_…`) key in a client.
 
