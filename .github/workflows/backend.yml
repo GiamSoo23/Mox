@@ -1,0 +1,46 @@
+# Starts a throwaway Supabase stack in Docker, applies every migration and
+# runs the pgTAP database tests. Never touches a real Supabase project.
+name: Backend
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Database tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 3.0.0
+
+      # Only Postgres and what the schema needs (Storage creates the
+      # storage.buckets table). Applies all migrations on start.
+      - name: Start Supabase
+        run: >
+          supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,realtime,mailpit,supavisor,postgres-meta
+
+      - name: Run pgTAP tests
+        run: supabase test db
