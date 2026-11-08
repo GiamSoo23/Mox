@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only components for the #37 spike. Never part of a release build. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application>
+        <receiver
+            android:name=".spike.ClipboardSpikeReceiver"
+            android:exported="true" />
+
+        <service
+            android:name=".spike.ClipboardSpikeService"
+            android:exported="true"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Spike for #37: clipboard writes from the background" />
+        </service>
+    </application>
+</manifest>
