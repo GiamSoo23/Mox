@@ -217,6 +217,10 @@ Each item is tracked as an issue:
 - **Credentials are compiled into the Android app**, and the app only
   supports one user. ([#36](https://github.com/GiamSoo23/Mox/issues/36))
 
+Every bug found so far, with its cause and fix, is in
+[docs/BUGS.md](docs/BUGS.md). What changed in each version is in
+[CHANGELOG.md](CHANGELOG.md).
+
 ### Where it's going
 
 Mox v2 turns this into an open-source, self-hosted tool: bring your own
@@ -256,6 +260,7 @@ mox/
 │           └── CopyToClipboardActivity.kt  foreground trampoline for clipboard
 └── docs/
     ├── ARCHITECTURE.md       deeper diagrams and the HTTP surface
+    ├── BUGS.md               bug log: causes, fixes, lessons
     ├── DESIGN.md             v2 design decisions
     └── ROADMAP.md            the plan, issue by issue
 ```
