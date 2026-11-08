@@ -2,11 +2,12 @@ package com.mox.app
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.webkit.MimeTypeMap
 import java.io.File
-import java.io.IOException
+import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.MediaType.Companion.toMediaType
@@ -19,26 +20,6 @@ import okio.source
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class CurrentFile(
-    val storagePath: String,
-    val originalName: String,
-    val mimeType: String?,
-    val sizeBytes: Long,
-    val uploadedFrom: String,
-    val uploadedAt: String
-) {
-    companion object {
-        fun fromJson(o: JSONObject) = CurrentFile(
-            storagePath = o.getString("storage_path"),
-            originalName = o.getString("original_name"),
-            mimeType = o.stringOrNull("mime_type"),
-            sizeBytes = o.getLong("size_bytes"),
-            uploadedFrom = o.getString("uploaded_from"),
-            uploadedAt = o.getString("uploaded_at")
-        )
-    }
-}
-
 /**
  * The string at [key], or null when it's missing, JSON null or empty.
  * Uses isNull rather than optString: on Android, optString turns JSON null
@@ -48,30 +29,48 @@ internal fun JSONObject.stringOrNull(key: String): String? =
     if (isNull(key)) null else getString(key).ifEmpty { null }
 
 /**
- * Thin REST client for Supabase Storage + PostgREST.
- * No SDK — just OkHttp + org.json so the APK stays small.
+ * Speaks the Mox protocol v2 (shared/PROTOCOL.md) to the owner's Supabase
+ * project: Auth, PostgREST (schema `mox`) and Storage. No SDK, just OkHttp
+ * and org.json, so the APK stays small.
  */
-class SupabaseRepo(
-    private val baseUrl: String = Config.supabaseUrl.trimEnd('/'),
-    private val key: String = Config.supabaseKey
-) : MoxBackend {
+class SupabaseRepo(private val settings: MoxSettings, private val deviceId: String) : MoxBackend {
+    private val baseUrl = settings.projectUrl.trimEnd('/')
     private val bucket = "mox"
+
+    /** v2 always stores the file under this name (#34). */
+    private val objectName = "current"
+    private val json = "application/json".toMediaType()
     private val client = OkHttpClient.Builder()
         .callTimeout(10, TimeUnit.MINUTES)
         .readTimeout(2, TimeUnit.MINUTES)
         .writeTimeout(10, TimeUnit.MINUTES)
         .build()
 
+    private val tokenLock = Mutex()
+    private var token: String? = null
+    private var tokenExpiresAtMs = 0L
+
+    override suspend fun checkSchema() = withContext(Dispatchers.IO) {
+        val rows = JSONArray(send { restGet("meta?select=schema_version", it) })
+        if (rows.length() == 0) {
+            throw MoxException("Signed in, but this user isn't the owner of Mox in this project.")
+        }
+        val version = rows.getJSONObject(0).getInt("schema_version")
+        if (version !=
+            2
+        ) {
+            throw MoxException("Your project has Mox schema v$version, but this app needs v2.")
+        }
+    }
+
     override suspend fun fetchCurrent(): CurrentFile? = withContext(Dispatchers.IO) {
-        val req = Request.Builder()
-            .url("$baseUrl/rest/v1/current_file?id=eq.1&select=*")
-            .headers(authHeaders())
-            .get()
-            .build()
-        client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("HTTP ${resp.code}")
-            val arr = JSONArray(resp.body!!.string())
-            if (arr.length() == 0) null else CurrentFile.fromJson(arr.getJSONObject(0))
+        val rows = JSONArray(send { restGet("current_file?id=eq.1&select=*", it) })
+        if (rows.length() ==
+            0
+        ) {
+            null
+        } else {
+            CurrentFile.fromJson(rows.getJSONObject(0)).also { it.validate() }
         }
     }
 
@@ -82,101 +81,142 @@ class SupabaseRepo(
         sizeBytes: Long,
         mime: String?
     ): CurrentFile = withContext(Dispatchers.IO) {
-        require(sizeBytes in 1..Config.MAX_BYTES) {
-            if (sizeBytes <= 0) "File is empty." else "File exceeds 500 MB cap."
+        if (sizeBytes <= 0) throw MoxException("The file is empty.")
+        if (sizeBytes > CurrentFile.MAX_SIZE) {
+            throw MoxException("${humanBytes(sizeBytes)} is too big: Mox sends files up to 50 MB.")
         }
-        val ext = displayName.substringAfterLast('.', "").ifEmpty {
-            MimeTypeMap.getSingleton().getExtensionFromMimeType(mime ?: "") ?: "bin"
-        }
-        val storagePath = "current.$ext"
         val effectiveMime = mime ?: "application/octet-stream"
-
-        val streamBody = object : RequestBody() {
+        // Streams from the content URI, so a 50 MB file never sits in memory.
+        val body = object : RequestBody() {
             override fun contentType() = effectiveMime.toMediaType()
             override fun contentLength() = sizeBytes
             override fun writeTo(sink: BufferedSink) {
-                resolver.openInputStream(uri)!!.use { input ->
-                    sink.writeAll(input.source())
-                }
+                requireNotNull(resolver.openInputStream(uri)) { "Can't read the shared file." }
+                    .use { sink.writeAll(it.source()) }
             }
         }
-
-        val uploadReq = Request.Builder()
-            .url("$baseUrl/storage/v1/object/$bucket/$storagePath")
-            .headers(authHeaders(extra = mapOf("x-upsert" to "true")))
-            .post(streamBody)
-            .build()
-        client.newCall(uploadReq).execute().use { resp ->
-            if (!resp.isSuccessful) {
-                val msg = resp.body?.string() ?: "HTTP ${resp.code}"
-                throw IOException("Upload failed: $msg")
-            }
+        // §4.3 then §4.4: bytes first, so other devices never see a row
+        // pointing at a file that isn't there yet.
+        send { token ->
+            Request.Builder()
+                .url("$baseUrl/storage/v1/object/$bucket/$objectName")
+                .headers(authHeaders(token, "x-upsert" to "true"))
+                .post(body)
+                .build()
         }
-
-        val row = JSONObject().apply {
-            put("id", 1)
-            put("storage_path", storagePath)
-            put("original_name", displayName)
-            put("mime_type", effectiveMime)
-            put("size_bytes", sizeBytes)
-            put("uploaded_from", "android")
-        }
-        val upsert = Request.Builder()
-            .url("$baseUrl/rest/v1/current_file?on_conflict=id")
-            .headers(
-                authHeaders(
-                    extra = mapOf(
-                        "Content-Type" to "application/json",
+        val row = JSONObject()
+            .put("id", 1)
+            .put("original_name", displayName)
+            .put("mime_type", effectiveMime)
+            .put("size_bytes", sizeBytes)
+            .put("kind", "file")
+            .put("item_count", 1)
+            .put("source_platform", "android")
+            .put("source_device_id", deviceId)
+        val written = send { token ->
+            Request.Builder()
+                .url("$baseUrl/rest/v1/current_file?on_conflict=id")
+                .headers(
+                    authHeaders(
+                        token,
+                        "Content-Profile" to "mox",
                         "Prefer" to "resolution=merge-duplicates,return=representation"
                     )
                 )
-            )
-            .post(row.toString().toRequestBody("application/json".toMediaType()))
-            .build()
-        client.newCall(upsert).execute().use { resp ->
-            if (!resp.isSuccessful) throw IOException("Upsert failed: HTTP ${resp.code}")
-            val arr = JSONArray(resp.body!!.string())
-            CurrentFile.fromJson(arr.getJSONObject(0))
-        }
-    }
-
-    override suspend fun signedDownloadUrl(path: String, expiresIn: Int): String =
-        withContext(Dispatchers.IO) {
-            val body = JSONObject().put("expiresIn", expiresIn).toString()
-                .toRequestBody("application/json".toMediaType())
-            val req = Request.Builder()
-                .url("$baseUrl/storage/v1/object/sign/$bucket/$path")
-                .headers(authHeaders(extra = mapOf("Content-Type" to "application/json")))
-                .post(body)
+                .post(row.toString().toRequestBody(json))
                 .build()
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) throw IOException("Sign failed: HTTP ${resp.code}")
-                val obj = JSONObject(resp.body!!.string())
-                "$baseUrl/storage/v1${obj.getString("signedURL")}"
-            }
         }
+        CurrentFile.fromJson(JSONArray(written).getJSONObject(0))
+    }
 
-    override suspend fun downloadTo(file: File, current: CurrentFile) {
+    override suspend fun signedDownloadUrl(expiresIn: Int): String = withContext(Dispatchers.IO) {
+        val reply = send { token ->
+            Request.Builder()
+                .url("$baseUrl/storage/v1/object/sign/$bucket/$objectName")
+                .headers(authHeaders(token))
+                .post(JSONObject().put("expiresIn", expiresIn).toString().toRequestBody(json))
+                .build()
+        }
+        // signedURL is relative: prefix it with /storage/v1.
+        "$baseUrl/storage/v1${JSONObject(reply).getString("signedURL")}"
+    }
+
+    override suspend fun downloadTo(file: File) {
+        withContext(Dispatchers.IO) { file.outputStream().use { downloadToStream(it) } }
+    }
+
+    override suspend fun downloadToStream(out: OutputStream) {
         withContext(Dispatchers.IO) {
-            file.outputStream().use { out -> downloadToStream(out, current) }
+            val request = Request.Builder().url(signedDownloadUrl()).get().build()
+            client.newCall(request).execute().use { resp ->
+                if (!resp.isSuccessful) throw MoxException("Download failed: HTTP ${resp.code}")
+                requireNotNull(resp.body).byteStream().copyTo(out)
+            }
         }
     }
 
-    override suspend fun downloadToStream(out: java.io.OutputStream, current: CurrentFile) {
-        withContext(Dispatchers.IO) {
-            val url = signedDownloadUrl(current.storagePath)
-            val req = Request.Builder().url(url).get().build()
-            client.newCall(req).execute().use { resp ->
-                if (!resp.isSuccessful) throw IOException("Download failed: HTTP ${resp.code}")
-                resp.body!!.byteStream().copyTo(out)
+    // ---- Auth (§2) -----------------------------------------------------
+
+    /** Runs a request with a valid token. On 401, signs in again and retries once. */
+    private suspend fun send(build: (String) -> Request): String {
+        for (attempt in 0..1) {
+            val request = build(accessToken(renew = attempt > 0))
+            client.newCall(request).execute().use { resp ->
+                if (resp.code == 401 && attempt == 0) return@use
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    throw MoxException(
+                        "Supabase answered HTTP ${resp.code}: ${body.take(200)}"
+                    )
+                }
+                return body
             }
+        }
+        throw MoxException(
+            "Couldn't sign in to your Supabase project. Pair again from your computer."
+        )
+    }
+
+    private suspend fun accessToken(renew: Boolean): String = tokenLock.withLock {
+        val now = System.currentTimeMillis()
+        token?.takeIf { !renew && tokenExpiresAtMs - now > 60_000 }?.let { return it }
+        val (fresh, lifetimeSeconds) = signIn()
+        token = fresh
+        tokenExpiresAtMs = now + lifetimeSeconds * 1000
+        fresh
+    }
+
+    /** Signs in as the Mox user. Each device keeps its own session. */
+    private fun signIn(): Pair<String, Long> {
+        val body = JSONObject().put("email", settings.email).put("password", settings.password)
+        val request = Request.Builder()
+            .url("$baseUrl/auth/v1/token?grant_type=password")
+            .header("apikey", settings.publishableKey)
+            .post(body.toString().toRequestBody(json))
+            .build()
+        client.newCall(request).execute().use { resp ->
+            if (!resp.isSuccessful) {
+                throw MoxException(
+                    "Couldn't sign in to your Supabase project. Pair again from your computer."
+                )
+            }
+            val reply = JSONObject(resp.body?.string().orEmpty())
+            return reply.getString("access_token") to reply.getLong("expires_in")
         }
     }
 
-    private fun authHeaders(extra: Map<String, String> = emptyMap()) = (
+    // ---- Requests (§3) ---------------------------------------------------
+
+    private fun restGet(pathAndQuery: String, token: String): Request = Request.Builder()
+        .url("$baseUrl/rest/v1/$pathAndQuery")
+        .headers(authHeaders(token, "Accept-Profile" to "mox"))
+        .get()
+        .build()
+
+    private fun authHeaders(token: String, vararg extra: Pair<String, String>) = (
         mapOf(
-            "apikey" to key,
-            "Authorization" to "Bearer $key"
+            "apikey" to settings.publishableKey,
+            "Authorization" to "Bearer $token"
         ) + extra
         ).toHeaders()
 }

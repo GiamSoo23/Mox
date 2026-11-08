@@ -16,17 +16,24 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 sealed class UiState {
     object Loading : UiState()
+
+    /** No settings yet: the user has to scan the desktop's QR code (or paste the link). */
+    data class NotPaired(val error: String? = null) : UiState()
     data class Empty(val error: String? = null) : UiState()
     data class Ready(val file: CurrentFile, val downloadedTo: File? = null) : UiState()
     data class Uploading(val name: String) : UiState()
@@ -35,18 +42,65 @@ sealed class UiState {
 }
 
 class MoxViewModel(app: Application) : AndroidViewModel(app) {
-    private val repo: MoxBackend = SupabaseRepo()
-    private val _state = MutableStateFlow<UiState>(UiState.Loading)
+    private val store = SettingsStore(app)
+    private val prefs = app.getSharedPreferences("mox", Context.MODE_PRIVATE)
+
+    /** This installation's id (PROTOCOL.md §1), written into every row it sends. */
+    private val deviceId: String = prefs.getString(KEY_DEVICE_ID, null)
+        ?: UUID.randomUUID().toString().also { prefs.edit().putString(KEY_DEVICE_ID, it).apply() }
+
+    private var repo: MoxBackend? = store.load()?.let { SupabaseRepo(it, deviceId) }
+
+    /** uploaded_at of the last file handled, kept across launches (PROTOCOL.md §6). */
+    private var lastHandled: String? = prefs.getString(KEY_LAST_HANDLED, null)
+
+    private val _state = MutableStateFlow<UiState>(
+        if (repo ==
+            null
+        ) {
+            UiState.NotPaired()
+        } else {
+            UiState.Loading
+        }
+    )
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    /** Short messages for a toast, e.g. "Paired with Gregory's MacBook". */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
     private var pollJob: Job? = null
 
-    // Persisted across launches so we don't re-notify or re-download the
-    // same file every time the user opens the app.
-    private val prefs = app.getSharedPreferences("mox", android.content.Context.MODE_PRIVATE)
-    private var lastHandledKey: String? = prefs.getString("lastHandledKey", null)
+    /**
+     * Pairs with a desktop from a pairing link (PROTOCOL.md §8.3): parse it,
+     * sign in and check the schema, and only then store the settings.
+     */
+    fun pair(link: String) = viewModelScope.launch {
+        val parsed = try {
+            PairingLink.parse(link)
+        } catch (e: PairingException) {
+            _state.value = UiState.NotPaired(e.message)
+            return@launch
+        }
+        val candidate = SupabaseRepo(parsed.toSettings(), deviceId)
+        _state.value = UiState.Loading
+        try {
+            candidate.checkSchema()
+        } catch (e: Exception) {
+            _state.value = UiState.NotPaired(e.message ?: "Pairing failed. Scan the QR code again.")
+            return@launch
+        }
+        store.save(parsed.toSettings())
+        repo = candidate
+        // A fresh pairing doesn't download whatever is already in the slot.
+        setLastHandled(null)
+        _messages.tryEmit("Paired with ${parsed.desktopName ?: "your computer"}")
+        refreshOnce()
+        startPolling()
+    }
 
     fun startPolling() {
-        if (pollJob?.isActive == true) return
+        if (repo == null || pollJob?.isActive == true) return
         pollJob = viewModelScope.launch {
             while (true) {
                 refreshOnce()
@@ -61,31 +115,36 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun refreshOnce() {
-        if (!Config.isConfigured) {
-            _state.value = UiState.Empty(error = Config.NOT_CONFIGURED_MESSAGE)
-            return
-        }
+        val backend = repo ?: return
         try {
-            val current = repo.fetchCurrent()
-            _state.value = if (current == null) {
-                UiState.Empty()
-            } else {
-                UiState.Ready(current)
-            }
-            if (current != null && current.uploadedFrom != "android") {
-                val key = "${current.storagePath}|${current.uploadedAt}"
-                if (key != lastHandledKey) {
-                    lastHandledKey = key
-                    prefs.edit().putString("lastHandledKey", key).apply()
-                    autoSaveAndNotify(current)
-                }
-            }
+            val current = backend.fetchCurrent()
+            _state.value = if (current == null) UiState.Empty() else UiState.Ready(current)
+            if (current != null) receiveIfNew(current)
         } catch (e: Exception) {
             if (_state.value is UiState.Loading) {
                 _state.value = UiState.Empty(error = e.message)
             }
             // Otherwise keep the last good state.
         }
+    }
+
+    /** PROTOCOL.md §6: skip our own uploads and files already handled. */
+    private suspend fun receiveIfNew(file: CurrentFile) {
+        if (file.sourceDeviceId == deviceId) return
+        val last = lastHandled
+        if (last == null) {
+            // First run or fresh pairing: remember what's there, don't download it.
+            setLastHandled(file.uploadedAt)
+            return
+        }
+        if (file.uploadedAt == last) return
+        setLastHandled(file.uploadedAt)
+        autoSaveAndNotify(file)
+    }
+
+    private fun setLastHandled(uploadedAt: String?) {
+        lastHandled = uploadedAt
+        prefs.edit().putString(KEY_LAST_HANDLED, uploadedAt).apply()
     }
 
     private suspend fun autoSaveAndNotify(file: CurrentFile) {
@@ -110,6 +169,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 file.sizeBytes,
                 uri,
                 file.mimeType,
+                from = file.sourceName,
                 savedTo = saved.locationLabel,
                 copiedToClipboard = clipped
             )
@@ -137,7 +197,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
                 // storage and share it through the FileProvider instead.
                 val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
                 val out = File(dir, FileNames.sanitize(file.originalName))
-                out.outputStream().use { repo.downloadToStream(it, file) }
+                out.outputStream().use { requireRepo().downloadToStream(it) }
                 val uri = FileProvider.getUriForFile(
                     ctx,
                     "${ctx.packageName}.fileprovider",
@@ -160,8 +220,10 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
             }
             val uri = resolver.insert(collection, values)
                 ?: throw IOException("Couldn't create an entry in ${destination.label}")
-            resolver.openOutputStream(uri)!!.use { out ->
-                repo.downloadToStream(out, file)
+            requireNotNull(resolver.openOutputStream(uri)) {
+                "Can't write to ${destination.label}"
+            }.use { out ->
+                requireRepo().downloadToStream(out)
             }
             values.clear()
             values.put(MediaStore.MediaColumns.IS_PENDING, 0)
@@ -170,15 +232,15 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
 
     fun upload(uri: Uri) = viewModelScope.launch {
-        if (!Config.isConfigured) {
-            _state.value = UiState.Error(Config.NOT_CONFIGURED_MESSAGE)
+        val backend = repo ?: run {
+            _state.value = UiState.Error(NOT_PAIRED_MESSAGE)
             return@launch
         }
         val resolver = getApplication<Application>().contentResolver
         val (name, size, mime) = describe(resolver, uri)
         _state.value = UiState.Uploading(name)
         try {
-            val row = repo.uploadFromContentUri(resolver, uri, name, size, mime)
+            val row = backend.uploadFromContentUri(resolver, uri, name, size, mime)
             _state.value = UiState.Sent(row)
         } catch (e: Exception) {
             _state.value = UiState.Error(e.message ?: "Upload failed")
@@ -192,7 +254,7 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
             val dir = File(app.cacheDir, "downloads").apply { mkdirs() }
             val safe = FileNames.sanitize(s.file.originalName)
             val outFile = File(dir, safe)
-            repo.downloadTo(outFile, s.file)
+            requireRepo().downloadTo(outFile)
             _state.value = UiState.Ready(s.file, downloadedTo = outFile)
 
             val shareUri: Uri = FileProvider.getUriForFile(
@@ -232,5 +294,14 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
         val mime = cr.getType(uri)
         return Triple(name, size, mime)
+    }
+
+    private fun requireRepo(): MoxBackend = repo ?: throw MoxException(NOT_PAIRED_MESSAGE)
+
+    private companion object {
+        const val KEY_DEVICE_ID = "deviceId"
+        const val KEY_LAST_HANDLED = "lastHandledUploadedAt"
+        const val NOT_PAIRED_MESSAGE =
+            "Pair Mox with your computer first: open Mox there, choose Pair a Phone, and scan the code."
     }
 }

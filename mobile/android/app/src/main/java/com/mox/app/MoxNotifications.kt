@@ -34,6 +34,7 @@ object MoxNotifications {
         sizeBytes: Long,
         contentUri: Uri,
         mime: String?,
+        from: String,
         savedTo: String,
         copiedToClipboard: Boolean = false
     ) {
@@ -58,7 +59,7 @@ object MoxNotifications {
         }
         val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("New file from Mac")
+            .setContentTitle("New file from $from")
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)

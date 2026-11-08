@@ -1,9 +1,11 @@
 package com.mox.app
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,17 +29,24 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import com.mox.app.ui.MoxTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val vm: MoxViewModel by viewModels()
@@ -56,6 +65,10 @@ class MainActivity : ComponentActivity() {
             ) == PackageManager.PERMISSION_GRANTED
             if (!granted) notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+        handlePairingLink(intent)
+        lifecycleScope.launch {
+            vm.messages.collect { Toast.makeText(this@MainActivity, it, Toast.LENGTH_LONG).show() }
+        }
         setContent {
             MoxTheme {
                 Surface(
@@ -63,9 +76,28 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val state by vm.state.collectAsState()
-                    MoxScreen(state, onPull = { vm.saveAndShare() })
+                    MoxScreen(state, onPull = { vm.saveAndShare() }, onPair = { vm.pair(it) })
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handlePairingLink(intent)
+    }
+
+    /**
+     * The pairing page opens Mox with mox://pair?<params> (PROTOCOL.md §8.1).
+     * The raw, still-encoded string is parsed: Uri.getQueryParameter would
+     * turn '+' into a space.
+     */
+    private fun handlePairingLink(intent: Intent?) {
+        val link = intent?.dataString ?: return
+        if (link.startsWith("mox://pair")) {
+            vm.pair(link)
+            // Don't pair again on rotation or when the activity is recreated.
+            intent.data = null
         }
     }
 
@@ -80,7 +112,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MoxScreen(state: UiState, onPull: () -> Unit) {
+fun MoxScreen(state: UiState, onPull: () -> Unit, onPair: (String) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -101,6 +133,8 @@ fun MoxScreen(state: UiState, onPull: () -> Unit) {
 
         when (state) {
             is UiState.Loading -> CircularProgressIndicator()
+
+            is UiState.NotPaired -> PairCard(state.error, onPair)
 
             is UiState.Empty -> EmptyCard(state.error)
 
@@ -132,6 +166,48 @@ fun MoxScreen(state: UiState, onPull: () -> Unit) {
     }
 }
 
+/**
+ * Shown until the phone is paired. Scanning the desktop's QR code with the
+ * camera opens the pairing page, which hands the link to this app. Pasting
+ * the link here is the fallback.
+ */
+@Composable
+private fun PairCard(error: String?, onPair: (String) -> Unit) {
+    var link by remember { mutableStateOf("") }
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp)) {
+            Text(
+                "Pair with your computer",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "On your computer, open Mox and choose Pair a Phone. Then scan the code with your camera.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (error != null) {
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    error,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            OutlinedTextField(
+                value = link,
+                onValueChange = { link = it },
+                label = { Text("Or paste the pairing link") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            TextButton(onClick = { onPair(link) }, enabled = link.isNotBlank()) { Text("Pair") }
+        }
+    }
+}
+
 @Composable
 private fun EmptyCard(error: String?) {
     StatusCard(
@@ -152,7 +228,7 @@ private fun FileCard(file: CurrentFile, onPull: () -> Unit, downloaded: Boolean)
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "${humanBytes(file.sizeBytes)} · from ${file.uploadedFrom}",
+                "${humanBytes(file.sizeBytes)} · from ${file.sourceName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

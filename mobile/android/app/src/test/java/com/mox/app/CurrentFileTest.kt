@@ -3,42 +3,47 @@ package com.mox.app
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
-/** The v1 row as PostgREST returns it. v2 rows are covered by the shared fixtures (#12). */
+/** v2 rows against shared/fixtures/rows/, the same files CI inserts into the real schema. */
 class CurrentFileTest {
-    private val row = """
-        {
-          "id": 1,
-          "storage_path": "current.jpg",
-          "original_name": "IMG_0001.jpg",
-          "mime_type": "image/jpeg",
-          "size_bytes": 2048,
-          "uploaded_from": "mac",
-          "uploaded_at": "2026-11-08T03:48:08.315078+00:00"
+    private fun row(name: String) = JSONObject(Fixtures.text(java.io.File(Fixtures.root, name)))
+
+    @Test
+    fun `every valid row fixture parses and validates`() {
+        val files = Fixtures.files("rows/valid", "json")
+        assertTrue(files.size >= 4)
+        for (file in files) CurrentFile.fromJson(JSONObject(Fixtures.text(file))).validate()
+    }
+
+    @Test
+    fun `every invalid row fixture is refused`() {
+        val files = Fixtures.files("rows/invalid", "json")
+        assertTrue(files.size >= 11)
+        for (file in files) {
+            try {
+                // Either it doesn't parse (missing device id) or validate() refuses it.
+                CurrentFile.fromJson(JSONObject(Fixtures.text(file))).validate()
+                fail("${file.name} was accepted")
+            } catch (expected: Exception) {
+                // refused, as it should be
+            }
         }
-    """.trimIndent()
-
-    @Test
-    fun `parses every field of a v1 row`() {
-        val file = CurrentFile.fromJson(JSONObject(row))
-        assertEquals("current.jpg", file.storagePath)
-        assertEquals("IMG_0001.jpg", file.originalName)
-        assertEquals("image/jpeg", file.mimeType)
-        assertEquals(2048L, file.sizeBytes)
-        assertEquals("mac", file.uploadedFrom)
-        assertEquals("2026-11-08T03:48:08.315078+00:00", file.uploadedAt)
     }
 
     @Test
-    fun `a null mime_type is null, not the string "null" (#56)`() {
-        val json = JSONObject(row).put("mime_type", JSONObject.NULL)
-        assertNull(CurrentFile.fromJson(json).mimeType)
+    fun `fields of a valid row`() {
+        val file = CurrentFile.fromJson(row("rows/valid/bundle-from-android.json"))
+        assertEquals("bundle", file.kind)
+        assertEquals(5, file.itemCount)
+        assertEquals("Android", file.sourceName)
+        assertEquals("a2b3c4d5-e6f7-4a8b-9c0d-1e2f3a4b5c6d", file.sourceDeviceId)
     }
 
     @Test
-    fun `a missing or empty mime_type is null`() {
-        assertNull(CurrentFile.fromJson(JSONObject(row).apply { remove("mime_type") }).mimeType)
-        assertNull(CurrentFile.fromJson(JSONObject(row).put("mime_type", "")).mimeType)
+    fun `a null mime_type is null, not the string null (#56)`() {
+        assertNull(CurrentFile.fromJson(row("rows/valid/no-mime-type.json")).mimeType)
     }
 }
