@@ -2,23 +2,22 @@
 
 Plain Compose + OkHttp app. No external SDK — small APK.
 
-## Configure
+## Configure: pair with your computer
 
-Add your Supabase project URL and **publishable** key to
-`mobile/android/local.properties`. Android Studio creates that file, and git
-ignores it, so credentials never reach the repository:
+There's nothing to configure at build time: every APK is the same, and no
+credentials are compiled in. The app gets its settings by **pairing**:
 
-```properties
-mox.supabaseUrl=https://<project-ref>.supabase.co
-mox.supabaseKey=sb_publishable_...
-```
+1. On your computer, open Mox → **Pair a Phone…**.
+2. Scan the QR code with the phone's camera. The
+   [pairing page](https://giamsoo23.github.io/Mox/pair/) offers the APK if
+   Mox isn't installed, then **Open in Mox** hands the settings to the app
+   (`mox://pair`, PROTOCOL.md §8).
+3. Mox signs in as your Mox user, checks the schema, and only then stores
+   the settings, encrypted with a key kept in the Android Keystore.
 
-They're compiled into `BuildConfig` at build time. If they're missing (CI
-builds, for example), the app starts and says it isn't configured. Never use
-your `sb_secret_…` key in a client.
-
-This is temporary: in v2 the app gets its configuration at runtime by
-scanning the pairing QR (#12, #17).
+The pairing card in the app also accepts the link pasted by hand (from the
+Mac's **Copy Link** button). The `mox.supabaseUrl` / `mox.supabaseKey`
+entries an older build read from `local.properties` are no longer used.
 
 ## Build
 

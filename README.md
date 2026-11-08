@@ -296,7 +296,7 @@ mox/
 3. **Mac:** `cp desktop/macos/.env.example desktop/macos/.env`, fill it in, then
    `cd desktop/macos && ./build-app.sh && open Mox.app`. See
    [desktop/macos/README.md](desktop/macos/README.md).
-4. **Android:** add the same values to `mobile/android/local.properties`
-   (git-ignored) as `mox.supabaseUrl=…` and `mox.supabaseKey=…`, then
-   `cd mobile/android && ./gradlew installDebug`. See
+4. **Android:** `cd mobile/android && ./gradlew installDebug`, then pair:
+   on the Mac choose **Pair a Phone…** and scan the QR code with the
+   phone. See
    [mobile/android/README.md](mobile/android/README.md).
