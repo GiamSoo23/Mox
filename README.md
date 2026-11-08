@@ -123,7 +123,7 @@ HTTP surface) are in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
   notification channels. minSdk 26, targetSdk 35.
 - **Backend:** Supabase (Postgres + PostgREST + Storage). The schema, RLS
   policies and bucket are defined in one idempotent
-  [SQL file](backend/schema.sql).
+  [SQL migration](backend/supabase/migrations/20260526000000_initial_schema.sql).
 
 ---
 
@@ -181,7 +181,7 @@ Most of the work wasn't the networking. It was fitting into what each OS allows:
 
 Mox is a **single-user** tool. Both clients ship with the project's public
 (anon / publishable) key, and the Row Level Security policies in
-[schema.sql](backend/schema.sql) give that key full access to the one table
+[the schema](backend/supabase/migrations/20260526000000_initial_schema.sql) give that key full access to the one table
 and the one bucket. **Anyone with a build of the app can read and replace the
 current file**, so builds aren't meant to be shared.
 
@@ -232,7 +232,7 @@ once, and later iPhone and Windows support. The design is in
 ```
 mox/
 ├── backend/
-│   └── schema.sql            bucket, singleton table, RLS policies (idempotent)
+│   └── supabase/             Supabase CLI project: config.toml + migrations/
 ├── desktop/
 │   └── macos/                Swift menu-bar app (SwiftPM)
 │       ├── Sources/Mox/
@@ -263,7 +263,9 @@ mox/
 ## Running it yourself
 
 1. Create a free project at [supabase.com](https://supabase.com), open the
-   **SQL editor**, paste [backend/schema.sql](backend/schema.sql) and run it.
+   **SQL editor**, paste the
+   [initial migration](backend/supabase/migrations/20260526000000_initial_schema.sql) and run it
+   (or use the Supabase CLI, see [backend/README.md](backend/README.md)).
 2. From **Project Settings → API**, copy the project URL and the anon /
    publishable key.
 3. **Mac:** `cp desktop/macos/.env.example desktop/macos/.env`, fill it in, then
