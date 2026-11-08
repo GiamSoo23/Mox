@@ -1,20 +1,8 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
-
-// Supabase credentials come from local.properties, which git ignores, so they
-// never end up in source control. Missing values build an app that says it
-// isn't configured (CI builds this way).
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) file.inputStream().use { load(it) }
-}
-
-fun localProperty(name: String): String = localProperties.getProperty(name, "").trim()
 
 // Version: the release workflow passes -PmoxVersion=X.Y.Z from the git tag.
 // versionCode must grow with every release for Android to accept an update,
@@ -41,9 +29,6 @@ android {
         targetSdk = 35
         versionCode = moxVersionCode
         versionName = moxVersion
-
-        buildConfigField("String", "SUPABASE_URL", "\"${localProperty("mox.supabaseUrl")}\"")
-        buildConfigField("String", "SUPABASE_KEY", "\"${localProperty("mox.supabaseKey")}\"")
     }
 
     signingConfigs {
