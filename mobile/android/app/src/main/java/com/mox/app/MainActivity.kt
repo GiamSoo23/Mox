@@ -207,15 +207,3 @@ private fun StatusCard(
         }
     }
 }
-
-fun humanBytes(n: Long): String {
-    if (n < 1024) return "$n B"
-    val units = listOf("KB", "MB", "GB")
-    var v = n.toDouble() / 1024.0
-    var i = 0
-    while (v >= 1024 && i < units.lastIndex) {
-        v /= 1024.0
-        i++
-    }
-    return "%.1f %s".format(v, units[i])
-}

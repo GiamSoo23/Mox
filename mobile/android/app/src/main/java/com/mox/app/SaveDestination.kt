@@ -1,13 +1,12 @@
 package com.mox.app
 
-import android.os.Environment
-
 /**
  * Where a received file is saved.
  *
  * Photos and videos go to the Camera folder, so they show up in the gallery
  * next to the user's own pictures. Everything else goes to Downloads.
- * Kept free of Android runtime calls so it can be unit-tested on the JVM.
+ * Free of Android calls (no Environment.DIRECTORY_* lookups, which are null
+ * in JVM unit tests), so it's unit-tested on the JVM.
  */
 enum class SaveDestination(val label: String) {
     CAMERA_PHOTO("Camera"),
@@ -18,8 +17,10 @@ enum class SaveDestination(val label: String) {
     /** Value for MediaStore's RELATIVE_PATH column (Android 10+). */
     val relativePath: String
         get() = when (this) {
-            CAMERA_PHOTO, CAMERA_VIDEO -> "${Environment.DIRECTORY_DCIM}/Camera"
-            DOWNLOADS -> Environment.DIRECTORY_DOWNLOADS
+            // Same values as Environment.DIRECTORY_DCIM and DIRECTORY_DOWNLOADS.
+            CAMERA_PHOTO, CAMERA_VIDEO -> "DCIM/Camera"
+
+            DOWNLOADS -> "Download"
         }
 
     companion object {
