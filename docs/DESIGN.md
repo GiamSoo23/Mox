@@ -448,7 +448,33 @@ something: integration tests that never touch a real project.
 | 7 | Android receives only while the app is open | Listening service with a Realtime connection (§3.1, #37). Spike done: background clipboard writes work on Samsung |
 | 8 | Web Push on iOS (§4.1) is unverified: delivery reliability, and what tapping can open | Spike before v1.1. Fallbacks: ntfy, then pull-only Shortcuts |
 
-## 13. Later
+## 13. Updates
+
+Mox isn't in an app store, so the apps update themselves from GitHub
+Releases. Decided with the author (#63, #64):
+
+- **Every device with a Mox app can notice an update**, and one tap updates
+  **both** the phone and the computer.
+- **Android** checks the latest release once a day and shows "Mox X.Y.Z is
+  available for your phone and computer". One tap downloads the APK, checks
+  it against `SHA256SUMS.txt`, and hands it to the system installer (one
+  system confirmation). Every release is signed with the same key (#24), so
+  it installs over the old version and the pairing survives.
+- **macOS** uses Sparkle, a library inside Mox (not a separate app), with an
+  EdDSA-signed appcast on GitHub Pages: a daily check plus "Check for
+  Updates…".
+- **Cross-device request.** The device that updated writes the requested
+  version to `mox.meta`. The Mac installs it on its own; Android shows its
+  one-tap notice.
+- **Compatibility** during the switch comes from the protocol versions
+  (`schema_version`, pairing `v=1`, unknown fields ignored). A breaking
+  change makes the older app ask for an update instead of failing silently.
+- **Releases are deliberate** (a version tag), not every merge to `main`.
+- To verify (#64 spike): whether macOS re-asks for the Finder (Automation)
+  permission after each update, because the ad-hoc signing identity
+  changes without a paid Apple account.
+
+## 14. Later
 
 - **End-to-end encryption.** The pairing payload would carry a symmetric
   key, and clients would encrypt before uploading, so Supabase only ever
