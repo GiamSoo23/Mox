@@ -1,5 +1,6 @@
 import AppKit
 import UserNotifications
+import MoxCore
 
 /// Owns the NSStatusItem, its menu, and the popover-less interactions.
 final class MenuBarController: NSObject {
@@ -259,11 +260,4 @@ enum Notifier {
                                          trigger: nil)
         UNUserNotificationCenter.current().add(req)
     }
-}
-
-func humanSize(_ bytes: Int64) -> String {
-    let formatter = ByteCountFormatter()
-    formatter.allowedUnits = [.useKB, .useMB, .useGB]
-    formatter.countStyle = .file
-    return formatter.string(fromByteCount: bytes)
 }

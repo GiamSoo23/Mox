@@ -1,4 +1,5 @@
 import AppKit
+import MoxCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?

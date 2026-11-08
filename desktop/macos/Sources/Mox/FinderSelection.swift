@@ -1,4 +1,5 @@
 import AppKit
+import MoxCore
 
 enum FinderSelection {
     /// Returns the POSIX paths currently selected in the front Finder window.

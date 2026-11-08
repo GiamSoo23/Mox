@@ -1,13 +1,13 @@
 import Foundation
 
 /// The single row in `current_file`: the file currently held by Mox.
-struct CurrentFile: Decodable, Equatable {
-    let storagePath: String
-    let originalName: String
-    let mimeType: String?
-    let sizeBytes: Int64
-    let uploadedFrom: String
-    let uploadedAt: String
+public struct CurrentFile: Decodable, Equatable {
+    public let storagePath: String
+    public let originalName: String
+    public let mimeType: String?
+    public let sizeBytes: Int64
+    public let uploadedFrom: String
+    public let uploadedAt: String
 
     /// The row's JSON uses the table's snake_case column names.
     enum CodingKeys: String, CodingKey {
@@ -21,13 +21,13 @@ struct CurrentFile: Decodable, Equatable {
 }
 
 /// Minimal Supabase REST client for Mox. Talks to Storage + PostgREST directly.
-final class SupabaseService {
+public final class SupabaseService {
     private let baseURL: URL
     private let anonKey: String
     private let session: URLSession
     private let bucket = "mox"
 
-    init(config: Config) {
+    public init(config: Config) {
         self.baseURL = config.supabaseURL
         self.anonKey = config.supabaseAnonKey
         let cfg = URLSessionConfiguration.default
@@ -39,7 +39,7 @@ final class SupabaseService {
     // MARK: Public API
 
     /// Reads the current file row, or nil if the table is empty.
-    func fetchCurrent() async throws -> CurrentFile? {
+    public func fetchCurrent() async throws -> CurrentFile? {
         var req = restRequest(path: "current_file", query: "id=eq.1&select=*")
         req.httpMethod = "GET"
         let (data, resp) = try await session.data(for: req)
@@ -50,7 +50,7 @@ final class SupabaseService {
 
     /// Uploads a local file and atomically updates the current_file row.
     /// Returns the row that was written.
-    func uploadFile(localPath: String, uploadedFrom: String = "mac") async throws -> CurrentFile {
+    public func uploadFile(localPath: String, uploadedFrom: String = "mac") async throws -> CurrentFile {
         let url = URL(fileURLWithPath: localPath)
         let attrs = try FileManager.default.attributesOfItem(atPath: localPath)
         let size = (attrs[.size] as? NSNumber)?.int64Value ?? 0
@@ -60,7 +60,7 @@ final class SupabaseService {
         }
         let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
         let storagePath = "current.\(ext)"
-        let mime = mimeType(for: ext)
+        let mime = MimeTypes.forExtension(ext)
 
         try await storageUpload(localFile: url, storagePath: storagePath, mime: mime)
 
@@ -76,7 +76,7 @@ final class SupabaseService {
     }
 
     /// Generates a short-lived signed download URL.
-    func signedDownloadURL(for path: String, expiresIn seconds: Int = 600) async throws -> URL {
+    public func signedDownloadURL(for path: String, expiresIn seconds: Int = 600) async throws -> URL {
         var req = storageRequest(path: "object/sign/\(bucket)/\(path)")
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -92,7 +92,7 @@ final class SupabaseService {
     }
 
     /// Downloads the current file directly to a local destination URL.
-    func downloadCurrent(to dest: URL) async throws {
+    public func downloadCurrent(to dest: URL) async throws {
         guard let current = try await fetchCurrent() else {
             throw MoxError.upload("Nothing to download.")
         }
@@ -156,24 +156,11 @@ final class SupabaseService {
             throw MoxError.upload("Supabase: HTTP \(http.statusCode) — \(msg)")
         }
     }
-
-    private func mimeType(for ext: String) -> String {
-        let map: [String: String] = [
-            "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
-            "heic": "image/heic", "gif": "image/gif", "webp": "image/webp",
-            "pdf": "application/pdf", "zip": "application/zip",
-            "txt": "text/plain", "md": "text/markdown",
-            "mp4": "video/mp4", "mov": "video/quicktime",
-            "mp3": "audio/mpeg", "m4a": "audio/mp4",
-            "json": "application/json"
-        ]
-        return map[ext.lowercased()] ?? "application/octet-stream"
-    }
 }
 
-enum MoxError: LocalizedError {
+public enum MoxError: LocalizedError, Equatable {
     case upload(String)
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .upload(let message): return message
         }
