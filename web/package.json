@@ -1,0 +1,9 @@
+{
+  "name": "mox-web",
+  "private": true,
+  "description": "Static pages served on GitHub Pages: the pairing page.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test \"**/*.test.js\""
+  }
+}
