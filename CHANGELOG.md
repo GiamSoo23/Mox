@@ -8,6 +8,10 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-08 · QR pairing
+
+First pre-release with downloadable apps.
+
 ### Added
 - **Pairing by QR code.** The Mac shows "Pair a Phone…" with a QR code (kept
   out of screenshots); the phone's camera opens the pairing page, which
@@ -46,6 +50,8 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 - Android read a null `mime_type` as the string `"null"` ([#56](https://github.com/GiamSoo23/Mox/issues/56)).
 
 ### Security
+- The anonymous v1 schema was removed: the publishable key alone can't read
+  or write any Mox data, only the Mox user can ([#49](https://github.com/GiamSoo23/Mox/issues/49), [#40](https://github.com/GiamSoo23/Mox/issues/40)).
 - The publishable key that had been committed was rotated and deleted, and
   the legacy `anon` / `service_role` keys were disabled. The old key now
   gets `401 Unregistered API key` ([#36](https://github.com/GiamSoo23/Mox/issues/36)).
@@ -125,7 +131,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/GiamSoo23/Mox/compare/v0.3.0...v0.5.0
 [0.3.0]: https://github.com/GiamSoo23/Mox/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/GiamSoo23/Mox/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/GiamSoo23/Mox/releases/tag/v0.1.0
