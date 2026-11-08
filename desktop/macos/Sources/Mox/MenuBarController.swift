@@ -13,6 +13,10 @@ final class MenuBarController: NSObject {
     private let lastHandledKey = "MoxLastHandledUploadedAt"
     private let hotkeyHuman: String
     private var lastStatus: String?
+    /// Set by the app delegate when Mox is configured; opens the QR window.
+    var onPairPhone: (() -> Void)? {
+        didSet { rebuildMenu() }
+    }
 
     init(supabase: SupabaseService?, deviceID: UUID, hotkeyHuman: String) {
         self.supabase = supabase
@@ -160,6 +164,9 @@ final class MenuBarController: NSObject {
                               keyEquivalent: "")
         send.target = self
         menu.addItem(send)
+        if onPairPhone != nil {
+            menu.addItem(actionItem("Pair a Phone…", #selector(pairPhone)))
+        }
         menu.addItem(.separator())
 
         if LoginItem.isAvailable {
@@ -189,6 +196,10 @@ final class MenuBarController: NSObject {
     }
 
     // MARK: Actions
+
+    @objc private func pairPhone() {
+        onPairPhone?()
+    }
 
     @objc private func sendSelection() {
         NotificationCenter.default.post(name: .moxSendSelection, object: nil)
