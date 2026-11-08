@@ -5,7 +5,7 @@ labeled [`bug`](https://github.com/GiamSoo23/Mox/issues?q=label%3Abug) are
 the source of truth.** This page is the readable summary: what happened,
 why, and what keeps it from coming back.
 
-Last updated: 2026-11-08.
+Last updated: 2026-11-08 (after the pairing release work).
 
 ## Index
 
@@ -15,6 +15,7 @@ Last updated: 2026-11-08.
 | [#34](https://github.com/GiamSoo23/Mox/issues/34) | Old storage object left behind when the extension changes | backend | Code review for the README | Fixed by design in v2. Done once clients use v2 |
 | [#35](https://github.com/GiamSoo23/Mox/issues/35) | Uploads over 50 MB fail; docs promised 500 MB | backend, docs | Checking the free plan's limits | Cap and checks in 0.3.0. Client checks pending |
 | [#36](https://github.com/GiamSoo23/Mox/issues/36) | Supabase key committed in Android `Config.kt` | security | Review before making the repo public | **Fixed**: key out of the code, rotated, verified dead, gitleaks in CI |
+| [#71](https://github.com/GiamSoo23/Mox/issues/71) | The first file after pairing on an empty slot wasn't downloaded | Android, macOS | Checking the data after a successful end-to-end test | Fixed, verified on the phone |
 | [#56](https://github.com/GiamSoo23/Mox/issues/56) | Android read a null `mime_type` as the string `"null"` | Android | Writing the first unit tests | Fixed (latent, never triggered) |
 | [#2](https://github.com/GiamSoo23/Mox/issues/2) | macOS README said the hotkey was ⌘⇧U; it's ⌘⇧M | docs | Comparing the docs to the code | Fixed in 0.1.0 |
 | — | ⌘⇧U didn't work while Finder was in front | macOS | Daily use, before versioning | Fixed before 0.1.0 |
@@ -108,6 +109,29 @@ commit hash and break the issue and PR links.
 revoked, key (recorded in `.gitleaksignore`). CI now runs gitleaks on every
 PR (#59). v2 also stops trusting the key alone (#40): v2 data needs the Mox
 user's sign-in.
+
+### #71: the first file after pairing was silently skipped
+
+**Symptom.** Pairing worked and files moved phone → Mac, so the end-to-end
+test looked like a pass. But the phone hadn't saved anything since pairing.
+
+**Root cause.** On a first run, each app records what's in the slot without
+downloading it, so an old file isn't fetched at install time. That baseline
+was only recorded when the slot **had** a row. Right after pairing, the v2
+slot was empty: nothing was recorded, so the first file from the other
+device took the "first run" path. It was recorded, and never downloaded.
+
+**How it was found.** Not by the test itself. After the user said "it
+works", the phone's stored state and the files Mox had saved were checked.
+There was no baseline and no new file, which only made sense with this bug.
+
+**Fix.** The baseline is recorded on the first successful poll whatever the
+slot holds, with an `empty` sentinel for an empty slot. Same change in both
+apps. Re-tested: a screenshot sent Mac → phone right after the fix landed
+in the gallery.
+
+**Lesson.** "It works" from a manual test is a starting point. Checking the
+data behind it is what catches the case the test didn't exercise.
 
 ### #56: a null MIME type became the text "null"
 
