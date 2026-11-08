@@ -1,4 +1,4 @@
-# Lints and builds the macOS menu-bar app on every PR that touches it.
+# Lints, builds and unit-tests the macOS menu-bar app on every PR that touches it.
 name: macOS
 
 on:
@@ -42,3 +42,7 @@ jobs:
 
       - name: Build (release)
         run: swift build -c release
+
+      # XCTest ships with Xcode, which the runner has (Command Line Tools alone don't).
+      - name: Unit tests
+        run: swift test
