@@ -34,8 +34,8 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ### Fixed
 - `uploaded_at` is refreshed every time the file is replaced, so Android
-  no longer misses a second file with the same extension. Database side;
-  confirmation against the live API is pending
+  no longer misses a second file with the same extension. Verified on a
+  real phone after applying the migrations
   ([#48](https://github.com/GiamSoo23/Mox/issues/48)).
 
 ### Security
