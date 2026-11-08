@@ -1,8 +1,20 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+// Supabase credentials come from local.properties, which git ignores, so they
+// never end up in source control. Missing values build an app that says it
+// isn't configured (CI builds this way).
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun localProperty(name: String): String = localProperties.getProperty(name, "").trim()
 
 android {
     namespace = "com.mox.app"
@@ -14,6 +26,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+
+        buildConfigField("String", "SUPABASE_URL", "\"${localProperty("mox.supabaseUrl")}\"")
+        buildConfigField("String", "SUPABASE_KEY", "\"${localProperty("mox.supabaseKey")}\"")
     }
 
     buildTypes {
@@ -27,7 +42,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
