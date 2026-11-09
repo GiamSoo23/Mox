@@ -8,6 +8,11 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-09 · Setup window
+
+Mox sets up your own Supabase project for you, and Android receives with
+the app closed.
+
 ### Added
 - **Setup window on the Mac.** With no settings, Mox opens a window that
   signs in to Supabase (or takes an access token), recommends a new project
@@ -26,6 +31,13 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
   ([#37](https://github.com/GiamSoo23/Mox/issues/37)).
 - [Install guide](docs/INSTALL.md): download, setup window, pairing, and
   what to do at the free plan's project limit.
+- A guided page for people with no Supabase account yet
+  ([#97](https://github.com/GiamSoo23/Mox/issues/97)).
+
+### Changed
+- The pairing page keeps downloading and pairing apart: **Open in Mox** waits
+  until you confirm Mox is installed, and never downloads the APK
+  ([#88](https://github.com/GiamSoo23/Mox/issues/88), [#98](https://github.com/GiamSoo23/Mox/issues/98)).
 
 ## [0.5.0] - 2026-11-08 · QR pairing
 
@@ -150,7 +162,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...v0.7.0
 [0.5.0]: https://github.com/GiamSoo23/Mox/compare/v0.3.0...v0.5.0
 [0.3.0]: https://github.com/GiamSoo23/Mox/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/GiamSoo23/Mox/compare/v0.1.0...v0.2.0
