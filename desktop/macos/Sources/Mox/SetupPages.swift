@@ -90,20 +90,36 @@ final class SetupProgressList {
 
     let view: NSStackView
     private var icons: [Row: NSImageView] = [:]
+    private var spinners: [Row: NSProgressIndicator] = [:]
     private var labels: [Row: NSTextField] = [:]
+    private let rows: [Row]
+    /// Overall progress across every row, so it's clear things are moving.
+    private let bar = NSProgressIndicator()
 
     init(includesNewProject: Bool) {
+        rows = Row.allCases.filter { $0 != .creatingProject || includesNewProject }
         view = NSStackView()
         view.orientation = .vertical
         view.alignment = .leading
         view.spacing = 8
-        for row in Row.allCases where row != .creatingProject || includesNewProject {
+        bar.style = .bar
+        bar.isIndeterminate = false
+        bar.minValue = 0
+        bar.maxValue = Double(rows.count)
+        bar.translatesAutoresizingMaskIntoConstraints = false
+        bar.widthAnchor.constraint(equalToConstant: SetupPages.width - 56).isActive = true
+        view.addArrangedSubview(bar)
+        view.setCustomSpacing(16, after: bar)
+        for row in rows {
             let icon = NSImageView()
+            let spinner = SetupPages.spinner()
+            spinner.isHidden = true
             let label = SetupPages.wrapping(row.title)
             label.preferredMaxLayoutWidth = SetupPages.width - 90
-            let line = NSStackView(views: [icon, label])
+            let line = NSStackView(views: [icon, spinner, label])
             line.orientation = .horizontal
             icons[row] = icon
+            spinners[row] = spinner
             labels[row] = label
             view.addArrangedSubview(line)
         }
@@ -114,7 +130,7 @@ final class SetupProgressList {
         switch step {
         case .waitingForProject: mark(current: .waiting)
         case .applyingMigrations(let done, let total):
-            mark(current: .migrations)
+            mark(current: .migrations, fraction: total == 0 ? 0 : Double(done) / Double(total))
             labels[.migrations]?.stringValue = total == 0
                 ? Row.migrations.title : "\(Row.migrations.title) (\(done) of \(total))"
         case .exposingSchema: mark(current: .schema)
@@ -127,14 +143,18 @@ final class SetupProgressList {
 
     func creatingProject() { mark(current: .creatingProject) }
 
-    private func mark(current: Row?, allDone: Bool = false) {
+    /// `fraction` is how far the current row itself has got (migrations).
+    private func mark(current: Row?, allDone: Bool = false, fraction: Double = 0) {
+        let finishedRows = allDone ? rows.count : current.flatMap { rows.firstIndex(of: $0) } ?? 0
+        bar.doubleValue = Double(finishedRows) + (allDone ? 0 : fraction)
         for (row, icon) in icons {
+            let isCurrent = !allDone && row == current
+            icon.isHidden = isCurrent
+            spinners[row]?.isHidden = !isCurrent
             let name: String
             let color: NSColor
             if allDone || (current.map { row.rawValue < $0.rawValue } ?? false) {
                 (name, color) = ("checkmark.circle.fill", .systemGreen)
-            } else if row == current {
-                (name, color) = ("arrow.triangle.2.circlepath.circle", .controlAccentColor)
             } else {
                 (name, color) = ("circle", .tertiaryLabelColor)
             }
