@@ -286,16 +286,19 @@ mox/
 
 ## Running it yourself
 
-1. Create a free project at [supabase.com](https://supabase.com), open the
-   **SQL editor**, paste the
-   [initial migration](backend/supabase/migrations/20260526000000_initial_schema.sql) and run it
-   (or use the Supabase CLI, see [backend/README.md](backend/README.md)).
-2. From **Project Settings → API**, copy the project URL and the anon /
-   publishable key.
-3. **Mac:** `cp desktop/macos/.env.example desktop/macos/.env`, fill it in, then
-   `cd desktop/macos && ./build-app.sh && open Mox.app`. See
+**To use Mox,** follow [docs/INSTALL.md](docs/INSTALL.md): download the Mac
+app, sign in with Supabase in the setup window, and scan the QR code with
+your phone. Mox creates or prepares your Supabase project for you.
+
+**To build it from source:**
+
+1. **Mac:** `cd desktop/macos && ./build-app.sh && open Mox.app`. The setup
+   window asks for a Supabase personal access token, because "Sign in with
+   Supabase" needs the OAuth client secret that only official builds carry
+   (set `MOX_OAUTH_CLIENT_SECRET` if you registered your own OAuth app). See
    [desktop/macos/README.md](desktop/macos/README.md).
-4. **Android:** `cd mobile/android && ./gradlew installDebug`, then pair:
-   on the Mac choose **Pair a Phone…** and scan the QR code with the
-   phone. See
+2. **Android:** `cd mobile/android && ./gradlew installDebug`, then choose
+   **Pair a Phone…** on the Mac and scan the QR code. See
    [mobile/android/README.md](mobile/android/README.md).
+3. **Backend by hand** (optional, instead of the setup window): see
+   [backend/README.md](backend/README.md).

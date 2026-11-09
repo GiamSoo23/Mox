@@ -97,7 +97,19 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build Mox.app
-        run: ./build-app.sh
+        env:
+          MOX_OAUTH_CLIENT_SECRET: ${{ secrets.MOX_OAUTH_CLIENT_SECRET }}
+        run: |
+          # A release without it would only offer the access-token setup.
+          if [[ "$GITHUB_REF_TYPE" == "tag" && -z "$MOX_OAUTH_CLIENT_SECRET" ]]; then
+            echo "::error::MOX_OAUTH_CLIENT_SECRET secret is missing"; exit 1
+          fi
+          ./build-app.sh
+          if /usr/libexec/PlistBuddy -c "Print :MoxOAuthClientSecret" Mox.app/Contents/Info.plist >/dev/null 2>&1; then
+            echo "Sign in with Supabase: enabled"
+          else
+            echo "Sign in with Supabase: not in this build"
+          fi
       - name: Stamp the version and zip
         env:
           VERSION: ${{ needs.version.outputs.version }}

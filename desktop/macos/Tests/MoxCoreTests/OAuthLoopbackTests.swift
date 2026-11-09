@@ -51,4 +51,13 @@ final class OAuthLoopbackTests: XCTestCase {
         XCTAssertNil(OAuthClient.mox(secret: ""))
         XCTAssertEqual(OAuthClient.mox(secret: "s")?.redirectURI, "http://localhost:53682/callback")
     }
+
+    func testTheSecretComesFromTheEnvironmentThenTheBundle() {
+        let bundle: [String: Any] = ["MoxOAuthClientSecret": "from-bundle"]
+        XCTAssertEqual(OAuthClient.secret(environment: "from-env", infoPlist: bundle), "from-env")
+        XCTAssertEqual(OAuthClient.secret(environment: nil, infoPlist: bundle), "from-bundle")
+        XCTAssertEqual(OAuthClient.secret(environment: "", infoPlist: bundle), "from-bundle")
+        XCTAssertNil(OAuthClient.secret(environment: nil, infoPlist: [:]))
+        XCTAssertNil(OAuthClient.secret(environment: nil, infoPlist: ["MoxOAuthClientSecret": ""]))
+    }
 }

@@ -14,6 +14,12 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
   or an existing one at the free plan's limit, warns when other people
   manage the project, sets it up, and ends on the pairing QR
   ([#81](https://github.com/GiamSoo23/Mox/issues/81)).
+- **Sign in with Supabase in official builds.** The release workflow adds
+  the OAuth client secret from a GitHub secret; builds from source use an
+  access token. CI checks the secret never appears in the git history
+  ([#82](https://github.com/GiamSoo23/Mox/issues/82)).
+- [Install guide](docs/INSTALL.md): download, setup window, pairing, and
+  what to do at the free plan's project limit.
 
 ## [0.5.0] - 2026-11-08 · QR pairing
 
