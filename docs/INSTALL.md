@@ -13,7 +13,7 @@ About ten minutes, most of it waiting for Supabase. You need:
 1. Download **Mox-macOS.zip** from the
    [latest release](https://github.com/GiamSoo23/Mox/releases/latest) and
    double-click it.
-2. Drag **Mox.app** into **Applications** and open it.
+2. Open **Mox.app**.
 3. macOS warns that it can't check the app for malicious software, because
    Mox isn't notarized by Apple yet. To open it anyway:
    - **macOS 15 or later:** click **Done**, open **System Settings → Privacy &
@@ -23,7 +23,13 @@ About ten minutes, most of it waiting for Supabase. You need:
    You only do this once. To check the download first, compare it with
    `SHA256SUMS.txt` from the same release: `shasum -a 256 Mox-macOS.zip`.
 
-Mox lives in the menu bar (a red box icon), not in the Dock.
+When it opens, Mox offers to **move itself to Applications**. Accept, and it
+reopens from there.
+
+Mox lives in the menu bar (a red box icon). macOS hides menu bar icons when
+the bar is full, and no app can claim a spot. If you can't see it, open Mox
+again from Applications: a window appears with **Pair a Phone…**, **Set Up
+Again…** and **Quit**, and Mox shows in the Dock while that window is open.
 
 ## 2. Set it up
 

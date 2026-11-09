@@ -10,10 +10,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pairingWindow: PairingWindowController?
 
     private var setupWindow: SetupWindowController?
+    private var homeWindow: HomeWindowController?
     private var config = Config.load()
     private let deviceID = DeviceIdentity.id
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        if AppMover.offerIfNeeded() { return }
         let bar = MenuBarController(supabase: nil, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
         self.menuBar = bar
         self.pollInterval = config.pollInterval
@@ -41,10 +43,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if let settings = SettingsStore.resolve(fromEnv: config.settings) {
             start(with: settings)
+            if !launchedAtLogin { showHome() }
         } else {
             bar.showStatus("Mox isn't set up yet. Choose Set Up Mox… to begin.")
             showSetup()
         }
+    }
+
+    /// Opening Mox while it's already running, including from the Dock.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showHome()
+        return false
+    }
+
+    private var launchedAtLogin: Bool {
+        NSAppleEventManager.shared().currentAppleEvent?
+            .paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+    }
+
+    /// Keeps Mox reachable even when macOS hides its menu bar icon (#87).
+    private func showHome() {
+        guard supabase != nil else { return showSetup() }
+        if homeWindow == nil {
+            homeWindow = HomeWindowController(hotkey: config.hotkey.human,
+                                              onPairPhone: { [weak self] in self?.menuBar?.onPairPhone?() },
+                                              onSetUp: { [weak self] in self?.showSetup() })
+        }
+        homeWindow?.present()
     }
 
     /// Connects to the project in `settings` and starts polling it.
