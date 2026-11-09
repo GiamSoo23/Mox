@@ -23,7 +23,7 @@ h1 { margin: 0; font-size: 2.25rem; letter-spacing: -0.02em; }
 h2 { margin: 0 0 0.25rem; font-size: 1.1rem; }
 p { margin: 0.25rem 0; }
 a { color: var(--accent); }
-.tagline, .muted { color: var(--muted); }
+.muted { color: var(--muted); }
 .small { font-size: 0.85rem; }
 .card {
   background: var(--card);
@@ -35,7 +35,7 @@ a { color: var(--accent); }
 .summary { text-align: center; }
 .label { color: var(--muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.06em; }
 .big { font-size: 1.35rem; font-weight: 600; }
-.error { border-color: var(--accent); }
+.error, .notice { border-color: var(--accent); }
 .steps { list-style: none; padding: 0; margin: 0; }
 .button {
   display: block;

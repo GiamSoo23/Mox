@@ -1,9 +1,8 @@
 // The pairing page: reads the link's fragment, then offers the right next
 // step for the phone. Parsing lives in pairing.js (tested against fixtures).
-import { PairingError, extractParams, parsePairingParams } from "./pairing.js";
+import { PairingError, androidIntentUrl, cameBackWithoutApp, extractParams, parsePairingParams } from "./pairing.js";
 
 const APK_URL = "https://github.com/GiamSoo23/Mox/releases/latest/download/Mox.apk";
-const ANDROID_PACKAGE = "com.mox.app";
 
 const $ = (id) => document.getElementById(id);
 const show = (id) => { $(id).hidden = false; };
@@ -16,15 +15,6 @@ function platform() {
     return "ios";
   }
   return "desktop";
-}
-
-/**
- * The Android hand-off: opens Mox if it's installed, otherwise the browser
- * follows the fallback and downloads the APK (PROTOCOL.md §8.1).
- */
-function androidIntentUrl(rawParams) {
-  return `intent://pair?${rawParams}#Intent;scheme=mox;package=${ANDROID_PACKAGE};` +
-    `S.browser_fallback_url=${encodeURIComponent(APK_URL)};end`;
 }
 
 const SECTIONS = ["loading", "error", "pairing", "android", "ios", "desktop"];
@@ -54,7 +44,8 @@ function render() {
   const where = platform();
   if (where === "android") {
     $("download-apk").href = APK_URL;
-    $("open-app").href = androidIntentUrl(raw);
+    $("open-app").href = androidIntentUrl(raw, window.location.href);
+    $("app-missing").hidden = !cameBackWithoutApp(window.location.href);
     show("android");
   } else {
     show(where);

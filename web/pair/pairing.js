@@ -99,6 +99,26 @@ export function parsePairingParams(raw) {
   };
 }
 
+const ANDROID_PACKAGE = "com.mox.app";
+const APP_MISSING_QUERY = "app=missing";
+
+/**
+ * The Android hand-off (PROTOCOL.md §8.1): opens Mox if it's installed.
+ * If not, the browser comes back to `pageUrl` marked with `app=missing`.
+ * The parameters stay in the fragment, so they still never reach a server.
+ */
+export function androidIntentUrl(rawParams, pageUrl) {
+  const page = new URL(pageUrl);
+  const fallback = `${page.origin}${page.pathname}?${APP_MISSING_QUERY}#${rawParams}`;
+  return `intent://pair?${rawParams}#Intent;scheme=mox;package=${ANDROID_PACKAGE};` +
+    `S.browser_fallback_url=${encodeURIComponent(fallback)};end`;
+}
+
+/** True when the browser came back because Mox isn't installed. */
+export function cameBackWithoutApp(pageUrl) {
+  return new URL(pageUrl).searchParams.get("app") === "missing";
+}
+
 /** Parses either form of the link (https pairing link or mox:// hand-off). */
 export function parsePairingLink(link) {
   return parsePairingParams(extractParams(link));

@@ -214,8 +214,9 @@ the pairing page passes it on to the phone app. Design: DESIGN.md §7.2.
 | **App hand-off** | `mox://pair?v=1&u=…&k=…&e=…&p=…&n=…` | Built by the pairing page to open the installed app. Same parameters, in the query |
 
 On Android the pairing page opens the hand-off as
-`intent://pair?<params>#Intent;scheme=mox;package=com.mox.app;S.browser_fallback_url=<latest APK>;end`.
-If Mox is installed it opens, and if not, the browser downloads the APK.
+`intent://pair?<params>#Intent;scheme=mox;package=com.mox.app;S.browser_fallback_url=<pairing page>?app=missing#<params>;end`.
+If Mox is installed it opens. If not, the browser returns to the pairing
+page, which asks to install Mox first. The APK has its own button.
 (iPhone hand-off: v1.1, #28.)
 
 The pairing page's address can differ (a fork may host its own), so
