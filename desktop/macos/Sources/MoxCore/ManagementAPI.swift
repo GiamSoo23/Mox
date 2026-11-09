@@ -117,6 +117,17 @@ public enum AuthAdmin {
         struct Created: Decodable { let id: UUID }
         return try JSONDecoder().decode(Created.self, from: data).id
     }
+
+    public static func deleteUser(projectURL: URL, secretKey: String, id: UUID,
+                                  session: URLSession = .shared) async throws {
+        let path = "auth/v1/admin/users/\(id.uuidString.lowercased())"
+        var req = URLRequest(url: projectURL.appendingPathComponent(path))
+        req.httpMethod = "DELETE"
+        req.setValue(secretKey, forHTTPHeaderField: "apikey")
+        let (data, resp) = try await session.data(for: req)
+        let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw ManagementError.from(status: status, body: data) }
+    }
 }
 
 // MARK: Models

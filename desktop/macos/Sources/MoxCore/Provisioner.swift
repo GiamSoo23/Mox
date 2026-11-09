@@ -75,6 +75,8 @@ public final class Provisioner {
             throw ProvisioningError.alreadyInstalled
         }
 
+        let previousUser = replaceExistingOwner ? try await generatedOwner(project.id) : nil
+
         progress(.creatingMoxUser)
         let keys = try await api.apiKeys(project: project.id, reveal: true)
         guard let secretKey = keys.first(where: \.isSecret)?.apiKey else { throw ProvisioningError.noSecretKey }
@@ -87,6 +89,13 @@ public final class Provisioner {
         progress(.settingOwner)
         try await api.runSQL(project: project.id,
                              "update mox.meta set owner_id = '\(userID.uuidString.lowercased())' where id = 1")
+
+        // Otherwise every Set Up Again leaves one more user behind. If this
+        // fails, the leftover user can't get in anymore, so it's harmless.
+        if let previousUser {
+            try? await AuthAdmin.deleteUser(projectURL: project.url, secretKey: secretKey,
+                                            id: previousUser, session: session)
+        }
 
         progress(.readingKey)
         guard let publishable = keys.first(where: \.isPublishable)?.apiKey else {
@@ -141,6 +150,17 @@ public final class Provisioner {
         let rows = try await api.runSQL(project: ref, "select owner_id is not null as has_owner from mox.meta")
         let first = ((try? JSONSerialization.jsonObject(with: rows)) as? [[String: Any]])?.first
         return first?["has_owner"] as? Bool ?? false
+    }
+
+    /// The current owner, only if it's a user Mox generated. A project's
+    /// owner could also be a person's own account, which is never deleted.
+    private func generatedOwner(_ ref: String) async throws -> UUID? {
+        let rows = try await api.runSQL(project: ref, """
+            select u.id from auth.users u join mox.meta m on m.owner_id = u.id
+            where u.email like 'mox-%@mox.invalid'
+            """)
+        let first = ((try? JSONSerialization.jsonObject(with: rows)) as? [[String: Any]])?.first
+        return (first?["id"] as? String).flatMap(UUID.init(uuidString:))
     }
 
     // MARK: Credentials
