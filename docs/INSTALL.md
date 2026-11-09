@@ -113,6 +113,8 @@ The code opens a page on your phone that gets Mox installed and paired:
    **Open in Mox**.
 3. Mox opens and says **Paired with** your Mac's name. It's ready to use.
 
+   <img src="assets/install/ready.jpg" width="320" alt="Mox on the phone, paired and ready">
+
 The QR code contains Mox's password for your project, so don't share it or
 send a screenshot of it. To pair another phone later, choose **Pair a
 Phone…** in the menu bar.
