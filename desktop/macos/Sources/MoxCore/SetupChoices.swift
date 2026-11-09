@@ -100,6 +100,17 @@ extension OAuthClient {
     /// the secret comes with official builds (#82) or `MOX_OAUTH_CLIENT_SECRET`.
     public static let moxClientID = "eba42d5a-0991-450c-9f60-44865c10765e"
     public static let moxRedirectURI = "http://localhost:\(OAuthLoopbackServer.port)/callback"
+    /// Where official builds keep the secret: a key in the app's Info.plist,
+    /// added by build-app.sh at release time (#82).
+    public static let infoPlistSecretKey = "MoxOAuthClientSecret"
+
+    /// The secret to use: the environment wins (a developer override), then
+    /// the app bundle. Nil when neither has one.
+    public static func secret(environment: String?, infoPlist: [String: Any]?) -> String? {
+        if let environment, !environment.isEmpty { return environment }
+        let bundled = infoPlist?[infoPlistSecretKey] as? String
+        return bundled?.isEmpty == false ? bundled : nil
+    }
 
     /// The Mox app with `secret`, or nil when this build has none.
     public static func mox(secret: String?) -> OAuthClient? {

@@ -21,6 +21,17 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
 cp "$BIN" "$APP/Contents/MacOS/Mox"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
+
+# Official builds carry the Mox OAuth app's secret, so "Sign in with
+# Supabase" works (#82). It comes from the environment (a GitHub secret in
+# the release workflow) and is never committed. Without it, the setup
+# window asks for a personal access token instead.
+if [[ -n "${MOX_OAUTH_CLIENT_SECRET:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :MoxOAuthClientSecret string $MOX_OAUTH_CLIENT_SECRET" "$APP/Contents/Info.plist"
+  echo "Added the OAuth client secret: Sign in with Supabase enabled."
+else
+  echo "Note: no MOX_OAUTH_CLIENT_SECRET, so setup uses a personal access token."
+fi
 if [[ -f Resources/AppIcon.icns ]]; then
   cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 fi

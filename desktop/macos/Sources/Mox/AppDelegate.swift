@@ -68,13 +68,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private var oauthSecret: String? {
+        OAuthClient.secret(environment: config.oauthClientSecret, infoPlist: Bundle.main.infoDictionary)
+    }
+
     /// Opens (or brings back) the setup window (#81).
     private func showSetup() {
         if let open = setupWindow, open.window?.isVisible == true {
             open.present()
             return
         }
-        let controller = SetupWindowController(oauthClient: .mox(secret: config.oauthClientSecret),
+        let controller = SetupWindowController(oauthClient: .mox(secret: oauthSecret),
                                                isReplacing: supabase != nil) { [weak self] settings in
             self?.finishSetup(settings)
         }

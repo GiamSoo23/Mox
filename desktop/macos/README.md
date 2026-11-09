@@ -6,7 +6,6 @@ A SwiftPM menu-bar app. Lives in the status bar, doesn't show in the Dock.
 
 ```bash
 cd desktop/macos
-cp .env.example .env       # then edit .env and paste your Supabase creds
 swift run -c release       # quick test from terminal
 ```
 
@@ -55,7 +54,15 @@ Mox reaches **your own** Supabase project as the Mox user (see
 keeps those settings in the **login Keychain**, readable only while the Mac
 is unlocked and never synced.
 
-For development you can put them in a `.env` (copy
+Normally the **setup window** writes them: it opens on the first launch
+(or from **Set Up Mox…** in the menu), signs in to Supabase, prepares a
+project, and saves the result ([docs/INSTALL.md](../../docs/INSTALL.md)).
+"Sign in with Supabase" appears only when the build has the OAuth client
+secret: `build-app.sh` adds `MOX_OAUTH_CLIENT_SECRET` from the environment
+to the app's Info.plist (the release workflow does this from a GitHub
+secret). Without it, the window asks for a personal access token.
+
+For development you can also put them in a `.env` (copy
 [.env.example](.env.example)). It's read at launch from `$MOX_ENV`,
 `~/.config/mox/.env`, the current directory, or the app bundle, and a
 complete `.env` is copied into the Keychain:
@@ -68,6 +75,7 @@ complete `.env` is copied into the Keychain:
 | `MOX_USER_PASSWORD`        | the Mox user's password                        |
 | `MOX_HOTKEY`               | (optional) hotkey, default `cmd+shift+m`       |
 | `MOX_POLL_SECONDS`         | (optional) poll interval, default `5`          |
+| `MOX_OAUTH_CLIENT_SECRET`  | (optional) enables "Sign in with Supabase"     |
 
 ## Pairing a phone
 
