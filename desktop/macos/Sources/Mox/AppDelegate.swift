@@ -9,16 +9,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var pollInterval: TimeInterval = 5
     private var pairingWindow: PairingWindowController?
 
-    func applicationDidFinishLaunching(_ note: Notification) {
-        let config = Config.load()
-        let deviceID = DeviceIdentity.id
-        let settings = SettingsStore.resolve(fromEnv: config.settings)
-        let supa = settings.map { SupabaseService(settings: $0, deviceID: deviceID) }
-        let bar = MenuBarController(supabase: supa, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
+    private var setupWindow: SetupWindowController?
+    private var config = Config.load()
+    private let deviceID = DeviceIdentity.id
 
-        self.supabase = supa
+    func applicationDidFinishLaunching(_ note: Notification) {
+        let bar = MenuBarController(supabase: nil, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
         self.menuBar = bar
         self.pollInterval = config.pollInterval
+        bar.onSetUp = { [weak self] in self?.showSetup() }
 
         // Request notification permission upfront so the system prompt appears
         // before the user starts pressing the hotkey, not after the first error.
@@ -40,25 +39,58 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                            + "(OSStatus \(regStatus)). Use menu instead.")
         }
 
-        if let settings {
-            bar.onPairPhone = { [weak self] in self?.showPairing(settings) }
+        if let settings = SettingsStore.resolve(fromEnv: config.settings) {
+            start(with: settings)
+        } else {
+            bar.showStatus("Mox isn't set up yet. Choose Set Up Mox… to begin.")
+            showSetup()
         }
+    }
 
-        guard let supa else {
-            bar.showStatus("Mox isn't set up yet. Add your project and Mox user to .env (see the README).")
-            return
-        }
+    /// Connects to the project in `settings` and starts polling it.
+    private func start(with settings: MoxSettings) {
+        pollTimer?.invalidate()
+        let supa = SupabaseService(settings: settings, deviceID: deviceID)
+        supabase = supa
+        menuBar?.supabase = supa
+        menuBar?.onPairPhone = { [weak self] in self?.showPairing(settings) }
+        let bar = menuBar
         Task {
             do {
                 try await supa.checkSchema()
             } catch {
-                await MainActor.run { bar.showError(error.localizedDescription) }
+                await MainActor.run { bar?.showError(error.localizedDescription) }
             }
             await self.poll()
         }
         pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             Task { await self?.poll() }
         }
+    }
+
+    /// Opens (or brings back) the setup window (#81).
+    private func showSetup() {
+        if let open = setupWindow, open.window?.isVisible == true {
+            open.present()
+            return
+        }
+        let controller = SetupWindowController(oauthClient: .mox(secret: config.oauthClientSecret),
+                                               isReplacing: supabase != nil) { [weak self] settings in
+            self?.finishSetup(settings)
+        }
+        setupWindow = controller
+        controller.present()
+    }
+
+    private func finishSetup(_ settings: MoxSettings) {
+        guard SettingsStore.save(settings) else {
+            menuBar?.showError("Mox was set up, but the Keychain refused to save its settings. Try again.")
+            return
+        }
+        menuBar?.resetForNewBackend()
+        start(with: settings)
+        menuBar?.showStatus("Set up. Pair your phone to start sending.")
+        showPairing(settings)
     }
 
     @objc private func handleSendSelection() {

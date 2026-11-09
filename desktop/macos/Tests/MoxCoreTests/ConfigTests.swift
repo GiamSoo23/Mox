@@ -34,6 +34,12 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(Config.from(env).settings?.publishableKey, "sb_publishable_old_name")
     }
 
+    func testTheOAuthSecretIsOptional() {
+        XCTAssertNil(Config.from([:]).oauthClientSecret)
+        XCTAssertNil(Config.from(["MOX_OAUTH_CLIENT_SECRET": ""]).oauthClientSecret)
+        XCTAssertEqual(Config.from(["MOX_OAUTH_CLIENT_SECRET": "abc"]).oauthClientSecret, "abc")
+    }
+
     func testDefaults() {
         let config = Config.from([:])
         XCTAssertEqual(config.hotkey.human, "⇧⌘M", "⌘⇧U is taken by Finder, so ⌘⇧M is the default")
