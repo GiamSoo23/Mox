@@ -8,6 +8,20 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-09 · Polish
+
+### Added
+- A switch on Android to stop receiving with Mox closed, and a prompt to
+  keep Android from stopping it to save battery
+  ([#37](https://github.com/GiamSoo23/Mox/issues/37)).
+
+### Changed
+- The Mac app icon now matches native Mac icons.
+
+### Fixed
+- **Set Up Again** no longer leaves the previous Mox user behind
+  ([#107](https://github.com/GiamSoo23/Mox/issues/107)).
+
 ## [0.7.0] - 2026-11-09 · Setup window
 
 Mox sets up your own Supabase project for you, and Android receives with
@@ -162,7 +176,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...v0.7.0
 [0.5.0]: https://github.com/GiamSoo23/Mox/compare/v0.3.0...v0.5.0
 [0.3.0]: https://github.com/GiamSoo23/Mox/compare/v0.2.0...v0.3.0
