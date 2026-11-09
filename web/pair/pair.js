@@ -17,6 +17,15 @@ function platform() {
   return "desktop";
 }
 
+/** Open in Mox fails until Mox is installed, so it waits for the person to confirm. */
+function setOpenEnabled(enabled, intent) {
+  const button = $("open-app");
+  if (enabled) button.href = intent;
+  else button.removeAttribute("href");
+  button.classList.toggle("disabled", !enabled);
+  button.setAttribute("aria-disabled", String(!enabled));
+}
+
 const SECTIONS = ["loading", "error", "pairing", "android", "ios", "desktop"];
 
 function render() {
@@ -44,7 +53,10 @@ function render() {
   const where = platform();
   if (where === "android") {
     $("download-apk").href = APK_URL;
-    $("open-app").href = androidIntentUrl(raw, window.location.href);
+    const intent = androidIntentUrl(raw, window.location.href);
+    $("installed").checked = false;
+    $("installed").onchange = () => setOpenEnabled($("installed").checked, intent);
+    setOpenEnabled(false, intent);
     $("app-missing").hidden = !cameBackWithoutApp(window.location.href);
     show("android");
   } else {
