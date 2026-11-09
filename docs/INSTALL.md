@@ -33,6 +33,10 @@ Again…** and **Quit**, and Mox stays in the Dock until you quit it.
 
 ## 2. Set it up
 
+**No Supabase account yet?** Click **New to Supabase? Start here**. You'll
+create a free account, confirm it from the email Supabase sends, and create
+an organization. Then come back and sign in.
+
 The setup window opens on the first launch. You can also open it from the
 menu bar: **Set Up Mox…**
 

@@ -72,6 +72,7 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
                     + "until you pair them again.", small: true, color: .systemOrange))
         }
         if let error { content.append(SetupPages.wrapping(error, color: .systemRed)) }
+        content.append(SetupPages.link("New to Supabase? Start here", self, #selector(showNewAccountPage)))
         var buttons: [NSButton] = []
         if oauthClient != nil {
             content.append(SetupPages.link("Use an access token instead", self, #selector(showTokenPage)))
@@ -88,7 +89,7 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
 
     // MARK: Sign in with Supabase
 
-    @objc private func signIn() {
+    @objc func signIn() {
         guard let client = oauthClient else { return }
         let pkce = PKCE.generate()
         let state = PKCE.generate().verifier
@@ -163,6 +164,11 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
             async let orgs = api.organizations()
             async let projects = api.projects()
             organizations = try await orgs
+            guard !organizations.isEmpty else {
+                self.api = nil
+                return showNewAccountSteps(notice: "Your Supabase account doesn't have an organization yet. "
+                    + "Create one, then sign in again.")
+            }
             choices = SetupChoices(projects: try await projects)
             showChoices()
         } catch {
