@@ -18,6 +18,9 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
   the OAuth client secret from a GitHub secret; builds from source use an
   access token. CI checks the secret never appears in the git history
   ([#82](https://github.com/GiamSoo23/Mox/issues/82)).
+- Opening Mox shows a window and a Dock icon, so it stays reachable when
+  macOS hides the menu bar icon ([#87](https://github.com/GiamSoo23/Mox/issues/87)),
+  and Mox offers to move itself to Applications ([#90](https://github.com/GiamSoo23/Mox/issues/90)).
 - [Install guide](docs/INSTALL.md): download, setup window, pairing, and
   what to do at the free plan's project limit.
 
