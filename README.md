@@ -1,5 +1,9 @@
 # Mox
 
+<!-- DEMO VIDEO: drag the video file here in GitHub's web editor (10 MB at most). -->
+https://github.com/user-attachments/assets/03f4bb3e-eb76-4dc7-8794-5c927f6aafd4
+
+
 **Send a file between your Mac and your Android phone in one step. It lands on the clipboard, ready to paste.**
 
 [![macOS CI](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml)
