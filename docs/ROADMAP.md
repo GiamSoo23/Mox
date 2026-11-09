@@ -1,6 +1,6 @@
 # Mox v2: roadmap
 
-**Last updated:** 2026-11-08 · **Design:** [DESIGN.md](DESIGN.md)
+**Last updated:** 2026-11-09 · **Design:** [DESIGN.md](DESIGN.md)
 
 This is the delivery plan for the v2 design: what gets built, in what order,
 and how it's split into pull requests and commits. Every commit listed here
@@ -20,9 +20,11 @@ it isn't.
 | M1 · Baseline and open source | ✅ done, tag [`v0.1.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.1.0) |
 | M2 · Quality gates and CI | ✅ done, tag [`v0.2.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.2.0) |
 | M3 · Backend v2 | ✅ done, tag [`v0.3.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.3.0); migrations applied to the live project |
-| M4 · Runtime config and security | in progress: v1 cleanup (#49) and contract tests (#13) left |
-| M5 · QR pairing | ✅ done (pairing works end to end on a real phone); first release `v0.5.0` pending |
-| M6–M8, v1.1, v1.2 | planned |
+| M4 · Runtime config and security | in progress: contract tests ([#13](https://github.com/GiamSoo23/Mox/issues/13)) left |
+| M5 · QR pairing | ✅ done, tag [`v0.5.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.5.0) |
+| M6 · Multi-file and background receiving | in progress: background receiving shipped in `v0.7.0`, multi-file left |
+| M7 · Setup wizard | ✅ shipped in [`v0.7.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.7.0); install guide screenshots left |
+| M8, v1.1, v1.2 | planned |
 
 For finished milestones, the tables below show the **original plan**. The
 real commits are in the history, and what changed along the way is noted

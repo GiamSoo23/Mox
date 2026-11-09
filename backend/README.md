@@ -8,8 +8,8 @@ project, so the schema lives in versioned migrations:
 ```
 backend/supabase/
 ├── config.toml          local stack settings (CLI defaults, project_id = "mox")
-└── migrations/          SQL applied in timestamp order
-    └── 20260526000000_initial_schema.sql
+├── migrations/          SQL applied in timestamp order
+└── tests/database/      pgTAP tests
 ```
 
 ## Set up a Supabase project

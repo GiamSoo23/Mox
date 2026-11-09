@@ -1,15 +1,16 @@
 # Mox: architecture
 
-This document goes one level below the [README](../README.md): how the data
-is stored, how each client is put together, every HTTP call they make, and
-the state machines behind the UI.
+This document goes one level below the [README](../README.md): how data is
+stored, how each client is built, and how the main flows work. The contract
+between clients is [shared/PROTOCOL.md](../shared/PROTOCOL.md). The reasoning
+behind these choices is in [DESIGN.md](DESIGN.md).
 
 - [Data model](#data-model)
-- [HTTP surface](#http-surface)
+- [Setting up a project](#setting-up-a-project)
+- [Pairing a phone](#pairing-a-phone)
 - [Mac client](#mac-client)
 - [Android client](#android-client)
-- [Phone → Mac flow](#phone--mac-flow)
-- [Polling and deduplication](#polling-and-deduplication)
+- [Sending and receiving](#sending-and-receiving)
 - [Concurrency](#concurrency)
 
 ---
@@ -17,256 +18,205 @@ the state machines behind the UI.
 ## Data model
 
 The backend is defined entirely in SQL migrations under
-[backend/supabase/migrations/](../backend/supabase/migrations/), starting with
-[the initial schema](../backend/supabase/migrations/20260526000000_initial_schema.sql).
-The script is idempotent, so it's safe to run again.
+[backend/supabase/migrations/](../backend/supabase/migrations/). Everything
+Mox owns lives in a `mox` schema, so it can share a project with another app
+without touching its tables.
 
 ```mermaid
 erDiagram
-    CURRENT_FILE ||--|| STORAGE_OBJECT : "storage_path points to"
+    AUTH_USERS ||--o| META : "owner_id"
+    CURRENT_FILE ||--|| STORAGE_OBJECT : "always named current"
+    META {
+        int id PK "always 1"
+        int schema_version "2"
+        uuid owner_id FK "the one user allowed in"
+    }
     CURRENT_FILE {
-        int id PK "always 1, CHECK (id = 1)"
-        text storage_path "current.EXT"
-        text original_name "name shown to the user"
+        int id PK "always 1"
+        text original_name "1 to 255 characters"
         text mime_type "nullable"
-        bigint size_bytes "bucket cap 500 MB, free plan 50 MB"
-        text uploaded_from "mac or android"
-        timestamptz uploaded_at "default now()"
+        bigint size_bytes "up to 50 MB"
+        text kind "file or bundle"
+        int item_count "1 for a file"
+        text source_platform "macos, windows, android, ios"
+        uuid source_device_id "skips your own uploads"
+        timestamptz uploaded_at "set by the database"
     }
     STORAGE_OBJECT {
-        text bucket_id "mox (private)"
-        text name "current.EXT"
+        text bucket_id "mox, private"
+        text name "current"
     }
 ```
 
-- **The singleton is enforced by the database, not by convention.** The
-  primary key defaults to `1` and a `CHECK (id = 1)` constraint rejects
-  anything else, so there can never be a second current file.
-- **`uploaded_from`** is limited to `'mac'` or `'android'` by a `CHECK`
-  constraint. Clients use it to skip their own uploads.
-- **`uploaded_at`** is set by Postgres (`default now()`), so both devices
-  compare the same clock instead of trusting their own.
-- **Row Level Security** is on for the table, and `storage.objects` has
-  policies scoped to `bucket_id = 'mox'`. Both grant the `anon` role full CRUD
-  (see the security model in the README).
+- **One slot, enforced by the database.** `CHECK (id = 1)` makes a second row impossible.
+- **One owner.** Row level security on both tables and on the bucket compares `auth.uid()` with `mox.owner_id()`. The `anon` role gets nothing, so the publishable key alone reads nothing.
+- **`uploaded_at` comes from the database**, through a trigger that also fires on upserts, so devices never compare their own clocks.
+- **Realtime.** `mox.current_file` is in the `supabase_realtime` publication, and Realtime applies the same row level security.
 
-## HTTP surface
+## Setting up a project
 
-Both clients call these endpoints directly. There's no SDK, so this table is
-the whole contract between the apps and the backend.
-
-| # | Purpose | Method and path | Notable headers / body | Mac | Android |
-|---|---|---|---|:-:|:-:|
-| 1 | Read the current file | `GET /rest/v1/current_file?id=eq.1&select=*` | — | ✓ | ✓ |
-| 2 | Upload the file bytes | `POST /storage/v1/object/mox/current.<ext>` | `x-upsert: true`, streamed body | ✓ | ✓ |
-| 3 | Point the row at it | `POST /rest/v1/current_file?on_conflict=id` | `Prefer: resolution=merge-duplicates,return=representation` | ✓ | ✓ |
-| 4 | Get a download link | `POST /storage/v1/object/sign/mox/current.<ext>` | `{"expiresIn": 600}` (3600 for share links) | ✓ | ✓ |
-| 5 | Download | `GET /storage/v1/object/sign/...?token=…` | signed URL, no auth header needed | ✓ | ✓ |
-
-Every authenticated request sends the key both as `apikey` and as
-`Authorization: Bearer …`. Sending a file is always **2 → 3** in that order,
-so the row never points at bytes that haven't finished uploading. Receiving
-is **1 → 4 → 5**.
-
-Implementations:
-[SupabaseService.swift](../desktop/macos/Sources/MoxCore/SupabaseService.swift) ·
-[SupabaseRepo.kt](../mobile/android/app/src/main/java/com/mox/app/SupabaseRepo.kt)
-
----
-
-## Mac client
-
-A SwiftPM executable packaged into `Mox.app` by
-[build-app.sh](../desktop/macos/build-app.sh). `LSUIElement` keeps it out of the Dock.
-It has no third-party dependencies.
+The setup window drives [Provisioner.swift](../desktop/macos/Sources/MoxCore/Provisioner.swift).
+Each step checks what's already there, so running it again is safe.
 
 ```mermaid
-flowchart TB
-    main["main.swift<br/>NSApplication bootstrap"] --> AD
-
-    subgraph core["App core"]
-        AD["AppDelegate<br/>wiring, 5 s poll timer, send flow"]
-        CFG["Config<br/>.env loader"]
-        SS["SupabaseService<br/>REST client"]
-    end
-
-    subgraph os["macOS integrations"]
-        HK["HotKeyManager<br/>Carbon RegisterEventHotKey"]
-        FS["FinderSelection<br/>NSAppleScript"]
-        LI["LoginItem<br/>SMAppService"]
-        PB["PasteboardCopier<br/>file URL + TIFF + PNG"]
-        NT["Notifier<br/>UserNotifications"]
-    end
-
-    subgraph ui["UI"]
-        MB["MenuBarController<br/>NSStatusItem + NSMenu"]
-    end
-
-    AD --> CFG
-    AD --> SS
-    AD --> HK
-    AD --> FS
-    AD --> LI
-    AD --> MB
-    MB --> SS
-    MB --> PB
-    MB --> NT
-    MB --> LI
+flowchart TD
+    A["Sign in with Supabase<br/>OAuth + PKCE, loopback on port 53682<br/>(or a personal access token)"] --> B["Read organizations and projects"]
+    B --> C{"Free project slot?"}
+    C -- "Yes" --> D["Recommend a new project"]
+    C -- "No" --> E["Recommend an existing project"]
+    D --> F{"Other admins<br/>in the organization?"}
+    E --> F
+    F -- "Yes" --> G["Warn before continuing"]
+    F -- "No" --> H["Wait until the project is ready"]
+    G --> H
+    H --> I["Apply only the missing migrations,<br/>recorded like the Supabase CLI does"]
+    I --> J["Expose the mox schema"]
+    J --> K["Create a random Mox user<br/>and make it the owner"]
+    K --> L["Save to the Keychain,<br/>show the pairing QR"]
 ```
 
-**Configuration.** `Config` merges the process environment with the first
-`.env` it finds, in this order: `$MOX_ENV`, `~/.config/mox/.env`, the current
-directory, the app bundle's `Resources/`, then the folder next to the binary.
-Keys: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, plus optional `MOX_HOTKEY` (for
-example `cmd+shift+m`) and `MOX_POLL_SECONDS`.
+The Supabase token stays in memory. The project's secret key is read once to
+create the Mox user and then dropped. The migrations are compiled into the app
+by [sync-migrations.py](../desktop/macos/scripts/sync-migrations.py), because
+`Mox.app` is assembled from the binary alone, and a test keeps that copy equal
+to `backend/`.
 
-**Send flow.** Hotkey or menu item → `FinderSelection.current()` → reject
-folders and empty selections → `uploadFile` (calls 2 and 3) → refresh the
-menu and post a notification.
-
-**Receive flow.** On every poll, `MenuBarController.update` compares the row
-with the last one it saw. If the row changed, came from Android, and this
-isn't the first poll since launch, it downloads the file to `~/Downloads`
-(as `name (1).ext`, `name (2).ext`… if the name is taken), puts it on the
-pasteboard, and posts a notification.
-
-**Menu-bar icon states:**
-
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    Idle --> Busy: hotkey pressed, upload starts
-    Busy --> Idle: upload finished or failed
-    Idle --> Arrived: new file from phone
-    Arrived --> Busy: next upload
-    note right of Idle: archivebox
-    note right of Busy: archivebox.fill
-    note right of Arrived: archivebox.circle.fill
-```
-
----
-
-## Android client
-
-A single-module Compose app. Dependencies: AndroidX, Compose Material 3,
-OkHttp, kotlinx-coroutines.
-
-```mermaid
-flowchart TB
-    subgraph entry["Entry points (AndroidManifest)"]
-        direction LR
-        MA["MainActivity<br/>launcher, Compose screen"]
-        SA["ShareActivity<br/>ACTION_SEND / SEND_MULTIPLE"]
-    end
-
-    VM["MoxViewModel<br/>StateFlow of UiState, polling job, auto-save"]
-    SR["SupabaseRepo<br/>OkHttp REST client"]
-    MS[("MediaStore.Downloads<br/>or FileProvider on API 26–28")]
-    SP[("SharedPreferences<br/>lastHandledKey")]
-    NO["MoxNotifications<br/>channel + PendingIntent"]
-    CA["CopyToClipboardActivity<br/>transparent, not exported"]
-
-    MA --> VM
-    SA --> VM
-    VM --> SR
-    VM --> MS
-    VM --> SP
-    VM --> NO
-    NO -- "user taps notification" --> CA
-```
-
-**Screen states.** Both activities render the same sealed `UiState`, which
-they collect from their own `MoxViewModel` instance. The main screen polls
-and receives files, and the share dialog sends them:
-
-```mermaid
-stateDiagram-v2
-    state "Main screen (MainActivity)" as Main {
-        [*] --> Loading
-        Loading --> Empty: no row yet, or first fetch failed
-        Loading --> Ready: row fetched
-        Empty --> Ready: a file appears
-        Ready --> Ready: newer file
-        Ready --> Error: Save / share failed
-        Error --> Ready: next successful poll
-    }
-    state "Share dialog (ShareActivity)" as Share {
-        state "Error" as ShareError
-        [*] --> Uploading
-        Uploading --> Sent: upload and upsert OK
-        Uploading --> ShareError: network or size error
-        Sent --> [*]: closes itself after about 1 s
-        ShareError --> [*]: user taps Close
-    }
-```
-
-After the first successful load, a failed poll doesn't change the screen.
-The last good state stays up, so a dropped connection doesn't flash an error.
-
-**Share target.** `ShareActivity` takes the first stream from `ACTION_SEND`
-(or from `ACTION_SEND_MULTIPLE`, because Mox is single-file), reads the
-display name and size through `OpenableColumns`, shows a small Compose
-dialog while uploading, and closes itself about 1 s after "Sent ✓".
-
-**Clipboard trampoline.** Android 10+ ignores `setPrimaryClip` from apps in
-the background. The notification's `PendingIntent` therefore opens
-`CopyToClipboardActivity`: it has no UI, is excluded from recents, has
-`noHistory`, sets the clip, shows a toast and finishes in the same frame.
-
----
-
-## Phone → Mac flow
+## Pairing a phone
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor U as You
-    participant G as Any Android app
-    participant A as Mox (Android)
-    participant S as Supabase Storage
-    participant DB as Postgres (current_file)
     participant M as Mox (Mac)
+    participant P as Pairing page
+    participant A as Mox (Android)
+    participant S as Your Supabase
 
-    U->>G: Share → Mox
-    G->>A: ACTION_SEND with content:// URI
-    A->>A: Read name and size (OpenableColumns)
-    A->>S: POST object/mox/current.jpg (streamed from ContentResolver)
-    A->>DB: POST current_file (upsert, uploaded_from = android)
-    A-->>U: "Sent ✓" dialog closes itself
-
-    loop Every 5 s (timer, always on)
-        M->>DB: GET current_file?id=eq.1
-        DB-->>M: Row
-    end
-    M->>M: Row changed and came from Android?
-    M->>S: Sign URL, then download
-    M->>M: Save to ~/Downloads with a unique name
-    M->>M: Put file and image data on NSPasteboard
-    M-->>U: "New file from phone" notification
+    M->>U: QR code with https://…/pair/#v=1&u=…&k=…&e=…&p=…
+    U->>P: Scan it with the phone's camera
+    P->>P: Read the fragment in the browser
+    U->>P: Confirm Mox is installed, tap Open in Mox
+    P->>A: intent:// hand-off with the same parameters
+    A->>S: Sign in and check the schema version
+    S-->>A: OK
+    A->>A: Store the settings, encrypted
+    A-->>U: "Paired with" your Mac's name
 ```
 
----
+The parameters stay in the URL **fragment**, which browsers never send to a
+server. If Mox isn't installed, the hand-off returns to the page, which asks
+to install it first.
 
-## Polling and deduplication
+## Mac client
 
-Both clients poll the same row, but they make different choices about when
-to act on it:
+A SwiftPM package with two targets. `MoxCore` holds everything that doesn't
+need a screen and is what the tests cover. `Mox` is the AppKit app, with
+`LSUIElement` set so it lives in the menu bar. There are no third-party
+dependencies.
+
+```mermaid
+flowchart TB
+    subgraph app["Mox · AppKit"]
+        AD["AppDelegate<br/>wiring, poll timer, send flow"]
+        MB["MenuBarController"]
+        SW["SetupWindowController"]
+        HW["HomeWindowController"]
+        PW["PairingWindowController"]
+        OS["HotKey, FinderSelection, PasteboardCopier,<br/>LoginItem, AppMover, SettingsStore"]
+    end
+    subgraph core["MoxCore · unit-tested"]
+        SS["SupabaseService"]
+        PR["Provisioner, ManagementAPI, SetupChoices"]
+        OA["SupabaseOAuth, OAuthLoopbackServer"]
+        PL["PairingLink, Config, CurrentFile"]
+    end
+    AD --> MB
+    AD --> SW
+    AD --> HW
+    AD --> PW
+    AD --> OS
+    AD --> SS
+    SW --> PR
+    SW --> OA
+    PW --> PL
+```
+
+- **Settings** live in the login Keychain. A complete `.env` is a developer override.
+- **Hotkey:** Carbon's `RegisterEventHotKey`, so Mox receives one key combination instead of watching the keyboard. The default is ⌘⇧M because Finder takes ⌘⇧U.
+- **Finder selection:** there's no public API, so Mox runs a short AppleScript.
+- **Pasteboard:** received images go on as a file URL and as TIFF and PNG, so `⌘V` works in Finder and in chat apps.
+- **Reaching Mox:** macOS hides menu bar icons when the bar is full. Opening Mox shows a window and a Dock icon.
+
+## Android client
+
+A single-module Compose app. Its dependencies are AndroidX, Compose Material 3,
+OkHttp and coroutines.
+
+```mermaid
+flowchart TB
+    subgraph entry["Entry points"]
+        MA["MainActivity<br/>screen, pairing link"]
+        SA["ShareActivity<br/>ACTION_SEND"]
+        LS["ListeningService<br/>foreground, Realtime"]
+        BR["ListeningStarter<br/>boot and app updates"]
+    end
+    VM["MoxViewModel<br/>UI state"]
+    FR["FileReceiver<br/>one lock, last handled"]
+    SR["SupabaseRepo<br/>OkHttp"]
+    MS[("MediaStore<br/>Camera or Downloads")]
+    CB["Clipboard and notification"]
+
+    MA --> VM
+    SA --> VM
+    BR --> LS
+    VM --> FR
+    LS --> FR
+    FR --> SR
+    FR --> MS
+    FR --> CB
+```
+
+- **Receiving with the app closed:** a `specialUse` foreground service holds one Realtime websocket and restarts after a reboot or an update. Firebase push isn't used because it needs a central sender.
+- **An event means only "the slot changed".** The service reads the row again on every event, on every reconnection and every five minutes, so a lost event costs a delay and not a file.
+- **Token expiry:** the connection is renewed shortly before the access token expires.
+- **One receiver:** the screen and the service share `FileReceiver`, whose lock keeps a file from being received twice.
+- **Saving:** photos and videos go to the Camera folder, the rest to Downloads, through `MediaStore` with `IS_PENDING` so other apps never see a half-written file.
+- **Clipboard:** written from the background on the phones tested. Where that's refused, tapping the notification opens a transparent activity that writes it.
+
+## Sending and receiving
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as You
+    participant M as Mox (Mac)
+    participant S as Storage
+    participant DB as Postgres
+    participant A as Mox (Android)
+
+    U->>M: Select a file, press ⌘⇧M
+    M->>S: Upload bytes to mox/current
+    M->>DB: Replace the row
+    DB-->>A: Realtime: the slot changed
+    A->>DB: Read the row
+    A->>A: Another device's? Not handled yet?
+    A->>S: Get a signed URL and download
+    A->>A: Save, copy to the clipboard
+    A-->>U: "New file" notification
+```
+
+Phone → Mac is the same exchange in the other direction, except that the Mac
+polls every 5 seconds instead of holding a connection.
 
 | | Mac | Android |
 |---|---|---|
-| When it polls | Always: a `Timer` started at launch | Only while `MainActivity` is visible (`onStart` → `onStop`) |
-| Interval | `MOX_POLL_SECONDS`, default 5 s | `Config.POLL_MS`, 5 s |
-| "Is this new?" | In memory: row ≠ last row seen | Persisted: `storage_path\|uploaded_at` ≠ `lastHandledKey` |
-| Skips own uploads | `uploaded_from != "mac"` | `uploaded_from != "android"` |
-| On first poll after launch | Updates the menu, no download or notification | Downloads if the key is new (the key survives restarts) |
-| On network error | Ignored silently | Keeps the last good state |
+| **Hears about changes** | Polls every 5 s (`MOX_POLL_SECONDS`) | Realtime, plus a 5 s poll while the screen is open |
+| **Is it new?** | `uploaded_at` ≠ the last handled, kept in UserDefaults | The same, kept in SharedPreferences |
+| **Skips its own uploads** | `source_device_id` | `source_device_id` |
+| **First read after pairing** | Records the slot, downloads nothing | Records the slot, downloads nothing |
+| **Network error** | Ignored, retried on the next poll | Keeps the last state, reconnects with backoff |
 
 ## Concurrency
 
-- **Mac:** `async/await` on `URLSession`. Network calls run in `Task`s, UI
-  updates go back through `MainActor.run`, and the Carbon hotkey callback
-  hops to the main queue before it does anything.
-- **Android:** `viewModelScope` coroutines. All I/O in `SupabaseRepo` runs on
-  `Dispatchers.IO`, the clipboard write runs on `Dispatchers.Main`, and the UI
-  watches a `StateFlow` with `collectAsState()`. The polling `Job` is cancelled
-  in `onStop`, so nothing polls in the background.
+- **Mac:** `async/await` on `URLSession`. Network work runs in `Task`s, UI updates return to the main actor, and the Carbon hotkey callback hops to the main queue.
+- **Android:** `viewModelScope` for the screen and a service-owned scope for listening. I/O runs on `Dispatchers.IO`, the clipboard on `Dispatchers.Main`, and a process-wide `Mutex` guards receiving.

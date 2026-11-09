@@ -8,8 +8,7 @@ There's no Mox server, so this document **is** the API.
 - Design and reasoning: [docs/DESIGN.md §8](../docs/DESIGN.md)
 - Test data every client must pass: [fixtures/](fixtures/)
 
-Status: **v2, not yet used by the apps.** They still speak v1 until #11 and
-#12 land.
+Status: **v2, used by the macOS and Android apps.**
 
 ---
 
