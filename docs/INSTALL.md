@@ -76,9 +76,11 @@ doesn't work, use **Use an access token instead**:
 ## 3. Pair your phone
 
 1. Point the phone's camera at the QR code and open the link.
-2. If Mox isn't on the phone yet, tap **Download Mox for Android** and install
-   it. Android asks you to allow installs from your browser the first time.
-3. Tap **Open in Mox**. Mox says **Paired with** your Mac's name.
+2. If Mox isn't on the phone yet, tap **Download Mox for Android**. When it
+   finishes, open the file and tap **Install**. Android asks you to allow
+   installs from your browser the first time.
+3. Go back to the page, check **Mox is installed on this phone**, and tap
+   **Open in Mox**. Mox says **Paired with** your Mac's name.
 
 The QR code contains Mox's password for your project, so don't share it or
 send a screenshot of it. To pair another phone later, choose **Pair a
