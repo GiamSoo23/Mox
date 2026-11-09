@@ -5,6 +5,8 @@ stored, how each client is built, and how the main flows work. The contract
 between clients is [shared/PROTOCOL.md](../shared/PROTOCOL.md). The reasoning
 behind these choices is in [DESIGN.md](DESIGN.md).
 
+- [Engineering highlights](#engineering-highlights)
+- [Testing and CI](#testing-and-ci)
 - [Data model](#data-model)
 - [Setting up a project](#setting-up-a-project)
 - [Pairing a phone](#pairing-a-phone)
@@ -12,6 +14,36 @@ behind these choices is in [DESIGN.md](DESIGN.md).
 - [Android client](#android-client)
 - [Sending and receiving](#sending-and-receiving)
 - [Concurrency](#concurrency)
+
+---
+
+## Engineering highlights
+
+| Problem | What Mox does | Where |
+|---|---|---|
+| **Set up a backend for someone who has never seen one** | The Mac signs in through OAuth with PKCE and a one-shot loopback listener, creates or reuses a project through the Management API, applies only the migrations it's missing, and creates a dedicated user. It stays safe to run again | [Provisioner.swift](../desktop/macos/Sources/MoxCore/Provisioner.swift) |
+| **Stay safe inside a project that also runs another app** | Everything lives in its own `mox` schema, and row level security admits exactly one generated user, so a leaked publishable key reads nothing | [migrations](../backend/supabase/migrations/), [pgTAP tests](../backend/supabase/tests/database/mox_v2_test.sql) |
+| **Receive on Android with no push server** | Firebase would need a central sender, which Mox doesn't have. A foreground service holds one Realtime websocket instead, and treats an event only as "read the row again", so a lost event is recovered on reconnect | [ListeningService.kt](../mobile/android/app/src/main/java/com/mox/app/ListeningService.kt) |
+| **Hand credentials to a phone without typing** | The QR holds a link whose secrets are in the URL fragment, which browsers never send to a server. The Mac's QR window is excluded from screenshots and screen sharing | [PROTOCOL.md §8](../shared/PROTOCOL.md#8-pairing-link-v1) |
+| **Know when another device sent something** | Each installation has its own device id and remembers the last `uploaded_at` it handled, set by the database so devices never compare their own clocks | [FileReceiver.kt](../mobile/android/app/src/main/java/com/mox/app/FileReceiver.kt) |
+| **Stay reachable when macOS hides the menu bar icon** | Apps can't claim a place on a full menu bar, so opening Mox shows a window and a Dock icon | [HomeWindowController.swift](../desktop/macos/Sources/Mox/HomeWindowController.swift) |
+
+The bugs found along the way, each with its cause and fix, are in
+[docs/BUGS.md](BUGS.md). The reasoning behind the design, including the
+alternatives that were rejected, is in [docs/DESIGN.md](DESIGN.md).
+
+## Testing and CI
+
+Every pull request runs what applies to it:
+
+| Area | Checks |
+|---|---|
+| **macOS** | SwiftLint in strict mode, build, 72 XCTest cases |
+| **Android** | ktlint, 27 JUnit tests, APK build |
+| **Database** | 30 pgTAP checks of the schema and of who can read and write what, on a real Postgres in Docker |
+| **Pairing page** | 25 tests against the shared fixtures, then deploys to GitHub Pages |
+| **Secrets** | gitleaks over the full git history |
+| **Releases** | Signed APK, verified against the release key, and the Mac app, published with checksums from a version tag |
 
 ---
 

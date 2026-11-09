@@ -20,6 +20,10 @@ About ten minutes, most of it waiting for Supabase. You need:
      Security**, scroll down to "Mox was blocked", and click **Open Anyway**.
    - **macOS 13–14:** right-click Mox.app, choose **Open**, then **Open** again.
 
+   <img src="assets/install/blocked.png" width="360" alt="macOS says Mox was not opened">
+
+   <img src="assets/install/open-anyway.png" width="560" alt="The Open Anyway button in Privacy & Security">
+
    You only do this once. To check the download first, compare it with
    `SHA256SUMS.txt` from the same release: `shasum -a 256 Mox-macOS.zip`.
 
@@ -31,25 +35,37 @@ the bar is full, and no app can claim a spot. If you can't see it, open Mox
 again from Applications: a window appears with **Pair a Phone…**, **Set Up
 Again…** and **Quit**, and Mox stays in the Dock until you quit it.
 
+<img src="assets/install/running.png" width="480" alt="The Mox is running window">
+
 ## 2. Set it up
 
 **No Supabase account yet?** Click **New to Supabase? Start here**. You'll
 create a free account, confirm it from the email Supabase sends, and create
 an organization. Then come back and sign in.
 
+<img src="assets/install/new-account.png" width="480" alt="Steps to get a Supabase account">
+
 The setup window opens on the first launch. You can also open it from the
 menu bar: **Set Up Mox…**
+
+<img src="assets/install/welcome.png" width="480" alt="The Welcome to Mox window">
 
 1. Click **Sign in with Supabase**. Your browser opens. Sign in, choose your
    organization, and allow Mox. Then go back to Mox.
 
    Mox uses this sign-in only to set up your project. It doesn't keep it.
+
+   <img src="assets/install/authorize.png" width="360" alt="Authorize Mox on Supabase">
 2. Choose where Mox keeps your files:
    - **Create a new project** (recommended). Supabase takes a few minutes to
      start it.
    - **A project you already have.** Mox adds its own tables in a separate
      `mox` schema and doesn't touch your data.
+
+   <img src="assets/install/choose-project.png" width="480" alt="Choosing where Mox keeps your files">
 3. Wait for the checklist to finish. Mox then shows a QR code.
+
+   <img src="assets/install/progress.png" width="480" alt="Progress checklist while Mox sets up the project">
 
 ### If you already have two free projects
 

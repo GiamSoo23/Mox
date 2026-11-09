@@ -5,6 +5,12 @@ owns their data, and Mox has no servers.** Changes that need a central backend
 won't be accepted. [docs/DESIGN.md](docs/DESIGN.md) explains why things are the
 way they are.
 
+## Build from source
+
+- **Mac:** `cd desktop/macos && ./build-app.sh && open Mox.app`. The setup window asks for a Supabase personal access token, because "Sign in with Supabase" needs the OAuth client secret only official builds carry. See [desktop/macos/README.md](desktop/macos/README.md).
+- **Android:** `cd mobile/android && ./gradlew installDebug`, then pair with the Mac's QR code. See [mobile/android/README.md](mobile/android/README.md).
+- **Backend by hand** (optional): see [backend/README.md](backend/README.md).
+
 ## How work happens
 
 1. **Open an issue first**, for bugs and ideas alike, so we can agree before you write code.

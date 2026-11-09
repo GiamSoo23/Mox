@@ -12,6 +12,20 @@ a reply may take a few days.
 
 Only the [latest release](https://github.com/GiamSoo23/Mox/releases/latest) gets fixes.
 
+## Privacy and your data
+
+Mox's author runs no backend and can't see anything you send.
+
+- **Files and settings** stay in your own Supabase project and on your devices.
+- **The current file stays in your project** until the next one replaces it. Mox keeps one file at a time.
+- **Your Mox password** is kept in the macOS Keychain and in an Android Keystore-encrypted store.
+- **The pairing page** reads its data in your browser. The page has no analytics and no third-party scripts.
+- **No analytics or telemetry** in any app.
+
+Supabase hosts your project under [its own terms](https://supabase.com/privacy).
+If other people administer your Supabase organization, they could read your
+files. The setup window warns you when that's the case.
+
 ## Security model
 
 | Asset | Where it lives | How it's protected |
