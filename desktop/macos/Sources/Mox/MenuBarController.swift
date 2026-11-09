@@ -5,7 +5,8 @@ import MoxCore
 /// Owns the NSStatusItem, its menu, and the popover-less interactions.
 final class MenuBarController: NSObject {
     private let statusItem: NSStatusItem
-    private let supabase: SupabaseService?
+    /// Replaced when the setup window finishes (#81).
+    var supabase: SupabaseService?
     private let deviceID: UUID
     private var current: CurrentFile?
     /// uploaded_at of the last file this Mac received, kept across launches
@@ -18,6 +19,17 @@ final class MenuBarController: NSObject {
     /// Set by the app delegate when Mox is configured; opens the QR window.
     var onPairPhone: (() -> Void)? {
         didSet { rebuildMenu() }
+    }
+    /// Opens the setup window: "Set Up Mox…", or "Set Up Again…" once set up.
+    var onSetUp: (() -> Void)? {
+        didSet { rebuildMenu() }
+    }
+
+    /// Forgets the current file and the receive baseline, for a new project.
+    func resetForNewBackend() {
+        current = nil
+        UserDefaults.standard.removeObject(forKey: lastHandledKey)
+        rebuildMenu()
     }
 
     init(supabase: SupabaseService?, deviceID: UUID, hotkeyHuman: String) {
@@ -170,6 +182,9 @@ final class MenuBarController: NSObject {
         if onPairPhone != nil {
             menu.addItem(actionItem("Pair a Phone…", #selector(pairPhone)))
         }
+        if onSetUp != nil {
+            menu.addItem(actionItem(supabase == nil ? "Set Up Mox…" : "Set Up Again…", #selector(setUp)))
+        }
         menu.addItem(.separator())
 
         if LoginItem.isAvailable {
@@ -202,6 +217,10 @@ final class MenuBarController: NSObject {
 
     @objc private func pairPhone() {
         onPairPhone?()
+    }
+
+    @objc private func setUp() {
+        onSetUp?()
     }
 
     @objc private func sendSelection() {

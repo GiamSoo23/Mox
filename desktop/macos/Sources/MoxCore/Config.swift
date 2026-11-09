@@ -9,6 +9,9 @@ public struct Config {
     public let settings: MoxSettings?
     public let hotkey: HotKeyCombo
     public let pollInterval: TimeInterval
+    /// The Mox OAuth app's secret, for "Sign in with Supabase" (#81, #82).
+    /// Without it, the setup window asks for an access token instead.
+    public let oauthClientSecret: String?
 
     /// Builds the configuration. The process environment wins over files,
     /// and earlier files win over later ones (see `defaultEnvFilePaths`).
@@ -38,7 +41,8 @@ public struct Config {
             ?? HotKeyCombo(key: .m, modifiers: [.command, .shift])
         let poll = TimeInterval(env["MOX_POLL_SECONDS"] ?? "") ?? 5
 
-        return Config(settings: settings, hotkey: hotkey, pollInterval: poll)
+        return Config(settings: settings, hotkey: hotkey, pollInterval: poll,
+                      oauthClientSecret: value("MOX_OAUTH_CLIENT_SECRET"))
     }
 
     /// Where `.env` files are looked for, in order: $MOX_ENV,

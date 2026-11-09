@@ -8,6 +8,13 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+### Added
+- **Setup window on the Mac.** With no settings, Mox opens a window that
+  signs in to Supabase (or takes an access token), recommends a new project
+  or an existing one at the free plan's limit, warns when other people
+  manage the project, sets it up, and ends on the pairing QR
+  ([#81](https://github.com/GiamSoo23/Mox/issues/81)).
+
 ## [0.5.0] - 2026-11-08 · QR pairing
 
 First pre-release with downloadable apps.
