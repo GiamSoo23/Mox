@@ -31,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -50,6 +51,9 @@ import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val vm: MoxViewModel by viewModels()
+
+    private var listening by mutableStateOf(false)
+    private var batteryRestricted by mutableStateOf(false)
 
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -76,7 +80,17 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val state by vm.state.collectAsState()
-                    MoxScreen(state, onPull = { vm.saveAndShare() }, onPair = { vm.pair(it) })
+                    MoxScreen(state, onPull = { vm.saveAndShare() }, onPair = { vm.pair(it) }) {
+                        ListeningCard(
+                            listening = listening,
+                            batteryRestricted = batteryRestricted,
+                            onToggle = {
+                                ListeningService.setEnabled(this, it)
+                                listening = it
+                            },
+                            onAllowBackground = { ListeningService.requestBatteryExemption(this) }
+                        )
+                    }
                 }
             }
         }
@@ -101,6 +115,13 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Also runs when Android's battery dialog closes.
+        listening = ListeningService.isEnabled(this)
+        batteryRestricted = ListeningService.batteryRestricted(this)
+    }
+
     override fun onStart() {
         super.onStart()
         vm.startPolling()
@@ -112,7 +133,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun MoxScreen(state: UiState, onPull: () -> Unit, onPair: (String) -> Unit) {
+fun MoxScreen(
+    state: UiState,
+    onPull: () -> Unit,
+    onPair: (String) -> Unit,
+    listeningCard: @Composable () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -162,6 +188,52 @@ fun MoxScreen(state: UiState, onPull: () -> Unit, onPair: (String) -> Unit) {
                 subtitle = state.message,
                 tone = ToneError
             )
+        }
+
+        if (state !is UiState.NotPaired && state !is UiState.Loading) {
+            Spacer(Modifier.height(16.dp))
+            listeningCard()
+        }
+    }
+}
+
+/** Turns receiving with Mox closed on or off (#37). */
+@Composable
+private fun ListeningCard(
+    listening: Boolean,
+    batteryRestricted: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onAllowBackground: () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Receive with Mox closed",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        if (listening) {
+                            "Files arrive by themselves. Android shows a small permanent notification."
+                        } else {
+                            "Files only arrive while Mox is open."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(checked = listening, onCheckedChange = onToggle)
+            }
+            if (listening && batteryRestricted) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Android may stop Mox to save battery.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(onClick = onAllowBackground) { Text("Allow in the background") }
+            }
         }
     }
 }
