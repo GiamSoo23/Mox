@@ -15,6 +15,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
 import okio.BufferedSink
 import okio.source
 import org.json.JSONArray
@@ -44,6 +46,13 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
         .callTimeout(10, TimeUnit.MINUTES)
         .readTimeout(2, TimeUnit.MINUTES)
         .writeTimeout(10, TimeUnit.MINUTES)
+        .build()
+
+    /** No read or call limit; pings notice a connection that died silently. */
+    private val realtimeClient = client.newBuilder()
+        .callTimeout(0, TimeUnit.MILLISECONDS)
+        .readTimeout(0, TimeUnit.MILLISECONDS)
+        .pingInterval(30, TimeUnit.SECONDS)
         .build()
 
     private val tokenLock = Mutex()
@@ -154,6 +163,23 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
             }
         }
     }
+
+    // ---- Realtime (§4.7) ------------------------------------------------
+
+    /** What one Realtime connection needs. */
+    data class RealtimeSession(val url: String, val token: String, val validForMs: Long)
+
+    suspend fun realtimeSession(): RealtimeSession = withContext(Dispatchers.IO) {
+        val current = accessToken(renew = false)
+        RealtimeSession(
+            RealtimeMessages.websocketUrl(baseUrl, settings.publishableKey),
+            current,
+            tokenExpiresAtMs - System.currentTimeMillis()
+        )
+    }
+
+    fun openRealtime(session: RealtimeSession, listener: WebSocketListener): WebSocket =
+        realtimeClient.newWebSocket(Request.Builder().url(session.url).build(), listener)
 
     // ---- Auth (§2) -----------------------------------------------------
 
