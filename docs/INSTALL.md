@@ -39,16 +39,16 @@ Again…** and **Quit**, and Mox stays in the Dock until you quit it.
 
 ## 2. Set it up
 
+The setup window opens on the first launch. You can also open it from the
+menu bar: **Set Up Mox…**
+
+<img src="assets/install/welcome.png" width="480" alt="The Welcome to Mox window">
+
 **No Supabase account yet?** Click **New to Supabase? Start here**. You'll
 create a free account, confirm it from the email Supabase sends, and create
 an organization. Then come back and sign in.
 
 <img src="assets/install/new-account.png" width="480" alt="Steps to get a Supabase account">
-
-The setup window opens on the first launch. You can also open it from the
-menu bar: **Set Up Mox…**
-
-<img src="assets/install/welcome.png" width="480" alt="The Welcome to Mox window">
 
 1. Click **Sign in with Supabase**. Your browser opens. Sign in, choose your
    organization, and allow Mox. Then go back to Mox.
