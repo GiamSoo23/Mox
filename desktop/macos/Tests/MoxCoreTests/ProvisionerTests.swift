@@ -11,6 +11,8 @@ final class ProvisionerTests: XCTestCase {
         var keys = #"[{"name":"moxv2","type":"publishable","api_key":"sb_publishable_x"},"#
             + #"{"name":"default","type":"secret","api_key":"sb_secret_x"}]"#
         var statusAfterWait = "ACTIVE_HEALTHY"
+        /// The current owner's id, when Mox generated that user.
+        var generatedOwner: String?
     }
 
     private var fake = FakeProject()
@@ -18,7 +20,9 @@ final class ProvisionerTests: XCTestCase {
     private var patchedSchemas: String?
     private var createdUser = false
     private var ownerSQL: String?
+    private var deletedUserPath: String?
     private let userID = "390e2d0b-0494-4f4e-a248-ea81c182f505"
+    private let oldUserID = "11111111-2222-4333-8444-555555555555"
 
     private func project(_ status: String = "ACTIVE_HEALTHY") -> Project {
         Project(id: "ref", organizationID: "org", name: "Mox", region: "us-west-2", status: status)
@@ -49,6 +53,9 @@ final class ProvisionerTests: XCTestCase {
         case ("POST", "/auth/v1/admin/users"):
             createdUser = true
             return ok(#"{"id":"\#(userID)"}"#)
+        case ("DELETE", "/auth/v1/admin/users/\(oldUserID)"):
+            deletedUserPath = path
+            return ok("{}")
         case ("POST", "/v1/projects/ref/database/query"):
             return ok(routeSQL(json?["query"] as? String ?? ""))
         default:
@@ -60,6 +67,9 @@ final class ProvisionerTests: XCTestCase {
     private func routeSQL(_ query: String) -> String {
         if query.contains("select version from supabase_migrations") {
             return "[" + fake.appliedVersions.map { #"{"version":"\#($0)"}"# }.joined(separator: ",") + "]"
+        }
+        if query.contains("from auth.users") {
+            return fake.generatedOwner.map { #"[{"id":"\#($0)"}]"# } ?? "[]"
         }
         if query.contains("has_owner") { return #"[{"has_owner":\#(fake.hasOwner)}]"# }
         if query.contains("update mox.meta set owner_id") {
@@ -108,6 +118,22 @@ final class ProvisionerTests: XCTestCase {
         _ = try await makeProvisioner().provision(project: project(), replaceExistingOwner: true)
         XCTAssertTrue(createdUser)
         XCTAssertNotNil(ownerSQL)
+    }
+
+    func testReplacingRemovesThePreviousGeneratedUser() async throws {
+        fake.appliedVersions = BundledMigrations.all.map(\.version)
+        fake.hasOwner = true
+        fake.generatedOwner = oldUserID
+        _ = try await makeProvisioner().provision(project: project(), replaceExistingOwner: true)
+        XCTAssertEqual(deletedUserPath, "/auth/v1/admin/users/\(oldUserID)")
+    }
+
+    func testAPersonsAccountIsNeverDeleted() async throws {
+        fake.appliedVersions = BundledMigrations.all.map(\.version)
+        fake.hasOwner = true
+        fake.generatedOwner = nil
+        _ = try await makeProvisioner().provision(project: project(), replaceExistingOwner: true)
+        XCTAssertNil(deletedUserPath)
     }
 
     func testOnlyMissingMigrationsAreApplied() async throws {
