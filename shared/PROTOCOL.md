@@ -149,6 +149,14 @@ prefix it with `{url}/storage/v1`.
 `GET` the full signed URL, with no auth headers. Stream it to disk. Use
 `original_name` for the file name (deduplicated: `name (1).ext`).
 
+### 4.7 Hear about changes (optional, instead of polling)
+
+Open a Realtime websocket and join a channel for `postgres_changes` on
+schema `mox`, table `current_file`, with the access token (§2). Treat every
+event only as "the slot changed": run 4.2 and apply §6. Don't read the row
+from the event. Also run 4.2 after every (re)connection, because events sent
+while disconnected are lost.
+
 ## 5. The row
 
 | Field | Type | Rule | Set by |
