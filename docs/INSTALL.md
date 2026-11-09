@@ -29,7 +29,7 @@ reopens from there.
 Mox lives in the menu bar (a red box icon). macOS hides menu bar icons when
 the bar is full, and no app can claim a spot. If you can't see it, open Mox
 again from Applications: a window appears with **Pair a Phone…**, **Set Up
-Again…** and **Quit**, and Mox shows in the Dock while that window is open.
+Again…** and **Quit**, and Mox stays in the Dock until you quit it.
 
 ## 2. Set it up
 

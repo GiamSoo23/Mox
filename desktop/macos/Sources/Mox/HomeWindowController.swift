@@ -2,8 +2,8 @@ import AppKit
 
 /// What opening Mox shows once it's set up (#87). macOS hides menu bar icons
 /// when the bar is full, so this window, and the Dock icon that comes with
-/// it, keep Mox reachable. Mox leaves the Dock again when it closes.
-final class HomeWindowController: NSWindowController, NSWindowDelegate {
+/// it, keep Mox reachable. The icon stays until Mox quits.
+final class HomeWindowController: NSWindowController {
     private let onPairPhone: () -> Void
     private let onSetUp: () -> Void
 
@@ -15,7 +15,6 @@ final class HomeWindowController: NSWindowController, NSWindowDelegate {
         window.title = "Mox"
         window.isReleasedWhenClosed = false
         super.init(window: window)
-        window.delegate = self
         window.contentView = SetupPages.page(
             title: "Mox is running",
             body: "Select a file in Finder and press \(hotkey) to send it to your phone. "
@@ -41,10 +40,6 @@ final class HomeWindowController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
         showWindow(nil)
         window?.makeKeyAndOrderFront(nil)
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
     }
 
     @objc private func pairPhone() {
