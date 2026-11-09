@@ -153,25 +153,7 @@ final class MenuBarController: NSObject {
             menu.addItem(.separator())
         }
 
-        if let file = current {
-            let title = NSMenuItem(title: file.originalName, action: nil, keyEquivalent: "")
-            title.isEnabled = false
-            menu.addItem(title)
-
-            let sub = "\(humanSize(file.sizeBytes)) · from \(file.sourceName)"
-            let subItem = NSMenuItem(title: sub, action: nil, keyEquivalent: "")
-            subItem.isEnabled = false
-            menu.addItem(subItem)
-
-            menu.addItem(.separator())
-            menu.addItem(actionItem("Save to Downloads", #selector(saveToDownloads)))
-            menu.addItem(actionItem("Save as…", #selector(saveAs)))
-            menu.addItem(actionItem("Copy share link", #selector(copyShareLink)))
-        } else {
-            let empty = NSMenuItem(title: "No file yet", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            menu.addItem(empty)
-        }
+        addFileItems(to: menu)
 
         menu.addItem(.separator())
         let send = NSMenuItem(title: "Send Finder selection  (\(hotkeyHuman))",
@@ -205,6 +187,29 @@ final class MenuBarController: NSObject {
             menuItem.target = self
         }
         statusItem.menu = menu
+    }
+
+    /// The current file and what can be done with it, or "No file yet".
+    private func addFileItems(to menu: NSMenu) {
+        if let file = current {
+            let title = NSMenuItem(title: file.originalName, action: nil, keyEquivalent: "")
+            title.isEnabled = false
+            menu.addItem(title)
+
+            let sub = "\(humanSize(file.sizeBytes)) · from \(file.sourceName)"
+            let subItem = NSMenuItem(title: sub, action: nil, keyEquivalent: "")
+            subItem.isEnabled = false
+            menu.addItem(subItem)
+
+            menu.addItem(.separator())
+            menu.addItem(actionItem("Save to Downloads", #selector(saveToDownloads)))
+            menu.addItem(actionItem("Save as…", #selector(saveAs)))
+            menu.addItem(actionItem("Copy share link", #selector(copyShareLink)))
+        } else {
+            let empty = NSMenuItem(title: "No file yet", action: nil, keyEquivalent: "")
+            empty.isEnabled = false
+            menu.addItem(empty)
+        }
     }
 
     private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {

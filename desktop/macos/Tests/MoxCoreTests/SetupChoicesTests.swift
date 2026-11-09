@@ -30,14 +30,14 @@ final class SetupChoicesTests: XCTestCase {
     }
 
     func testOnlyMemberMeansNoWarning() {
-        let me = OrganizationMember(userID: "u1", email: "me@example.com", roleName: "Owner")
-        XCTAssertEqual(SharedProjectCheck.otherAdmins([me]), [])
+        let owner = OrganizationMember(userID: "u1", email: "me@example.com", roleName: "Owner")
+        XCTAssertEqual(SharedProjectCheck.otherAdmins([owner]), [])
     }
 
     func testEveryoneIsListedWhenSomeoneElseIsAMember() {
-        let me = OrganizationMember(userID: "u1", email: "me@example.com", roleName: "Owner")
+        let owner = OrganizationMember(userID: "u1", email: "me@example.com", roleName: "Owner")
         let other = OrganizationMember(userID: "u2", email: nil, roleName: "Developer")
-        XCTAssertEqual(SharedProjectCheck.otherAdmins([me, other]), ["me@example.com", "u2"])
+        XCTAssertEqual(SharedProjectCheck.otherAdmins([owner, other]), ["me@example.com", "u2"])
     }
 
     func testRegionGuesses() {
