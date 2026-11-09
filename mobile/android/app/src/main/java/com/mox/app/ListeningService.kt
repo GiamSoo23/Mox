@@ -9,8 +9,11 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -176,9 +179,41 @@ class ListeningService : Service() {
         private const val MIN_RETRY_MS = 2_000L
         private const val MAX_RETRY_MS = 60_000L
 
-        /** Starts listening if Mox is paired. Safe to call repeatedly. */
+        private const val KEY_ENABLED = "listeningEnabled"
+
+        private fun prefs(context: Context) =
+            context.getSharedPreferences(FileReceiver.PREFS, Context.MODE_PRIVATE)
+
+        fun isEnabled(context: Context): Boolean = prefs(context).getBoolean(KEY_ENABLED, true)
+
+        /** The switch on the main screen. Remembered across restarts. */
+        fun setEnabled(context: Context, enabled: Boolean) {
+            prefs(context).edit().putBoolean(KEY_ENABLED, enabled).apply()
+            if (enabled) {
+                start(context)
+            } else {
+                context.stopService(Intent(context, ListeningService::class.java))
+            }
+        }
+
+        /** True when Android may stop the service to save battery. */
+        fun batteryRestricted(context: Context): Boolean =
+            !context.getSystemService(PowerManager::class.java)
+                .isIgnoringBatteryOptimizations(context.packageName)
+
+        /** Android's own "allow in the background" dialog. */
+        fun requestBatteryExemption(context: Context) {
+            context.startActivity(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:${context.packageName}")
+                )
+            )
+        }
+
+        /** Starts listening if Mox is paired and it's on. Safe to call repeatedly. */
         fun start(context: Context) {
-            if (SettingsStore(context).load() == null) return
+            if (!isEnabled(context) || SettingsStore(context).load() == null) return
             runCatching {
                 ContextCompat.startForegroundService(
                     context,

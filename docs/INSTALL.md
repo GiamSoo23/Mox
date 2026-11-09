@@ -96,6 +96,14 @@ Phone…** in the menu bar.
 - **Phone → Mac:** in any app, tap **Share → Mox**. The file lands in
   `~/Downloads` and on the clipboard.
 
+### Receiving with Mox closed
+
+Once paired, Android shows a small permanent **Mox is listening** notification,
+and files arrive by themselves. To turn that off, use the switch on Mox's main
+screen. If the screen says Android may stop Mox, tap **Allow in the
+background**. On Samsung phones, also open **Settings → Battery → Background usage
+limits** and add Mox to the apps that never sleep.
+
 ## Something went wrong
 
 | What you see | What to do |
