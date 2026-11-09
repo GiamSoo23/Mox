@@ -1,9 +1,11 @@
 # Builds signed release binaries. On a version tag (v1.2.3) it publishes a
 # GitHub release with them. On a PR that touches this workflow or the
-# Android build file it's a dry run: build, sign, verify, publish nothing.
+# Android build file, or when run by hand, it's a dry run: build, sign,
+# verify, publish nothing. The builds stay as artifacts for a week.
 name: Release
 
 on:
+  workflow_dispatch:
   push:
     tags: ["v*.*.*"]
   pull_request:
