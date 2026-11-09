@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(29);
+select plan(30);
 
 -- Two users: the Mox owner, and a stranger (e.g. a user of another app
 -- living in the same Supabase project).
@@ -29,6 +29,12 @@ select policies_are(
     array['owner reads current file', 'owner inserts current file',
           'owner updates current file', 'owner deletes current file'],
     'mox.current_file has exactly the four owner policies'
+);
+
+select ok(
+    exists (select 1 from pg_publication_tables
+            where pubname = 'supabase_realtime' and schemaname = 'mox' and tablename = 'current_file'),
+    'mox.current_file is published to Realtime (#37)'
 );
 
 -- Constraints (checked as the table owner, so RLS doesn't interfere) --------
