@@ -515,3 +515,56 @@ Alternatives looked at: PocketBase (a single self-hosted executable, good
 for people with an always-on machine), Appwrite Cloud (closest to
 Supabase, but it limits free projects too), Firebase (file storage now
 needs a billing plan). Neon and Turso only store data, not files.
+
+### Idea: Mox Cloud, an optional paid hosted backend
+
+*Not planned before v1.0 (#104). Multi-tenant hosting stays a non-goal until
+then. Written down so current decisions don't close it off.*
+
+Bring-your-own Supabase stays free and fully supported. Mox Cloud would be a
+second, equal choice at setup, around $5 a year, for people who don't want to
+run a backend. The code can stay MIT: only billing and operations would need
+to be private.
+
+**What helps already.** Clients reach the backend through one URL and plain
+REST, pairing links are versioned, and downloads use signed URLs with no auth
+headers, so files can move to other storage.
+
+**What blocks it.** The backend assumes one owner and one slot: `mox.meta` and
+`current_file` are single rows, the object is always named `current`, and
+every policy checks `mox.owner_id()`. Mox Cloud needs one row per user, object
+paths like `{user_id}/current`, and policies on `auth.uid()`.
+
+**Direction, if it happens**
+
+- One multi-tenant project. A project per customer can't pay for itself at
+  this price.
+- Files on storage with no egress fees, such as Cloudflare R2, because
+  bandwidth is the main cost. It could sit behind the Mox API idea above.
+- Quotas from day one: size per file, GB per month, and files deleted
+  automatically after about 24 hours.
+- Web checkout through a merchant of record, which handles sales tax. Check
+  Google Play's billing rules before listing the app.
+
+**Rough numbers, to verify before deciding.** About $4.30 a year per user
+after fees, or $0.36 a month. Supabase Pro at about $25 a month breaks even
+near 70 subscribers. At about $0.09 per GB of egress, 4 GB a month uses up a
+user's whole revenue.
+
+**Required before launch**
+
+- End-to-end encryption (#78), since Mox would be holding other people's files.
+  It doesn't remove legal duties: terms of service, abuse handling and deletion
+  requests are still needed.
+- Pairing with a one-time code and a revocable token per device, instead of a
+  shared email and password in the QR code.
+- A decision on Apple's paid developer account for Mac distribution.
+
+**Rules for work before then**
+
+- Keep object paths and row ids inside each client's backend layer
+  (`SupabaseService`, `SupabaseRepo`), so one place changes later.
+- Show a readable message for backend errors the client doesn't recognize, so
+  future quota or expired-subscription responses don't look like crashes.
+- Clients stop when `schema_version` isn't 2. Mox Cloud needs a minimum-version
+  policy before that number changes, or older apps get locked out.
