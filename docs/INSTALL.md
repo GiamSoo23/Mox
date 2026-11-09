@@ -104,6 +104,20 @@ screen. If the screen says Android may stop Mox, tap **Allow in the
 background**. On Samsung phones, also open **Settings → Battery → Background usage
 limits** and add Mox to the apps that never sleep.
 
+## Uninstalling
+
+- **Phone:** uninstall Mox like any other app.
+- **Mac:** choose **Quit Mox**, delete Mox from Applications, then remove its
+  saved settings in the Terminal:
+  ```
+  security delete-generic-password -s com.mox.app.settings -a default
+  defaults delete com.mox.app
+  ```
+- **Your data:** Mox's files are in your Supabase project. If you created one
+  just for Mox, delete it from the [dashboard](https://supabase.com/dashboard).
+  In a project you share with another app, Mox's data is the `mox` schema, the
+  `mox` Storage bucket and the `mox-…@mox.invalid` user.
+
 ## Something went wrong
 
 | What you see | What to do |
