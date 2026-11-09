@@ -41,7 +41,7 @@ final class OAuthLoopbackTests: XCTestCase {
         try await Task.sleep(nanoseconds: 300_000_000)
         let url = URL(string: "http://127.0.0.1:\(OAuthLoopbackServer.port)/callback?code=xyz&state=s1")!
         let (data, _) = try await URLSession.shared.data(from: url)
-        XCTAssertTrue(String(decoding: data, as: UTF8.self).contains("Signed in"))
+        XCTAssertTrue(String(bytes: data, encoding: .utf8)?.contains("Signed in") ?? false)
         let received = try await code.value
         XCTAssertEqual(received, "xyz")
     }
