@@ -1,0 +1,28 @@
+# Checks the bundle fixtures (PROTOCOL.md §9): rebuilds them from
+# bundles.py and runs the reference reader over them.
+name: Shared fixtures
+
+on:
+  pull_request:
+    paths:
+      - "shared/fixtures/bundles/**"
+      - ".github/workflows/shared.yml"
+  push:
+    branches: [main]
+    paths:
+      - "shared/fixtures/bundles/**"
+
+permissions:
+  contents: read
+
+jobs:
+  bundles:
+    name: Bundle fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: python3 -I shared/fixtures/bundles/bundles.py check
