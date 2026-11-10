@@ -82,7 +82,8 @@ final class ProvisionerTests: XCTestCase {
             return fake.generatedOwner.map { #"[{"id":"\#($0)"}]"# } ?? "[]"
         }
         if query.contains("has_owner") { return #"[{"has_owner":\#(fake.hasOwner)}]"# }
-        if query.contains("mox.push_config") {
+        // The push setup statement, not the migration that creates the table.
+        if query.contains("insert into mox.push_config") {
             pushSQL = query
             return "[]"
         }
