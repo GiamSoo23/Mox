@@ -28,7 +28,18 @@ function setOpenEnabled(enabled, intent) {
 
 const SECTIONS = ["loading", "error", "pairing", "android", "ios", "desktop"];
 
+/** True when this page was opened from an icon on the iPhone home screen. */
+function openedFromHomeScreen() {
+  return window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+
 function render() {
+  // Added to the home screen from here instead of from Mox for iPhone:
+  // go straight to the app, which pairs from the same fragment.
+  if (platform() === "ios" && openedFromHomeScreen()) {
+    window.location.replace(`../app/${window.location.hash}`);
+    return;
+  }
   // Start from scratch every time: a new link can arrive in the same tab
   // with only the fragment changed, which doesn't reload the page.
   for (const id of SECTIONS) $(id).hidden = true;
