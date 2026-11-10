@@ -22,13 +22,18 @@ data class CurrentFile(
      * Checks the rules of §5. The database enforces them too; this lets the
      * app refuse a bad row with a clear message.
      */
+    /** Text to paste, not a file to save (#101). */
+    val isText: Boolean get() = kind == "text"
+
     fun validate() {
         if (id != 1) invalid("id must be 1")
         if (originalName.codePointCount(0, originalName.length) !in 1..255) {
             invalid("the file name must be 1–255 characters")
         }
         if (sizeBytes !in 1..MAX_SIZE) invalid("the size must be between 1 byte and 50 MB")
-        val itemsOk = (kind == "file" && itemCount == 1) || (kind == "bundle" && itemCount >= 2)
+        val itemsOk =
+            (kind in setOf("file", "text") && itemCount == 1) ||
+                (kind == "bundle" && itemCount >= 2)
         if (!itemsOk) invalid("kind $kind can't have $itemCount items")
         if (sourcePlatform !in PLATFORMS) invalid("unknown platform $sourcePlatform")
         if (!UUID_PATTERN.matches(sourceDeviceId)) invalid("the device id isn't a UUID")

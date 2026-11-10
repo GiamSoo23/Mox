@@ -22,7 +22,8 @@ A row of `mox.current_file` exactly as PostgREST returns it (one object).
 | `empty-file.json` | `size_bytes` ≥ 1 |
 | `bundle-with-one-item.json` | a bundle has 2+ items |
 | `file-with-many-items.json` | a file has exactly 1 item |
-| `unknown-kind.json` | `kind` is `file` or `bundle` |
+| `text-with-many-items.json` | a text has exactly 1 item |
+| `unknown-kind.json` | `kind` is `file`, `bundle` or `text` |
 | `missing-device-id.json` | `source_device_id` is required |
 | `empty-name.json`, `name-too-long.json` | `original_name` is 1–255 characters |
 | `second-row.json` | `id` is always 1 |

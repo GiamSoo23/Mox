@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(30);
+select plan(31);
 
 -- Two users: the Mox owner, and a stranger (e.g. a user of another app
 -- living in the same Supabase project).
@@ -72,6 +72,12 @@ select throws_ok(
     $$ insert into mox.current_file (original_name, size_bytes, source_platform)
        values ('IMG_0001.jpg', 2048, 'macos') $$,
     '23502', null, 'source_device_id is required'
+);
+
+select throws_ok(
+    $$ insert into mox.current_file (original_name, size_bytes, kind, item_count, source_platform, source_device_id)
+       values ('Text.txt', 42, 'text', 2, 'android', '33333333-3333-3333-3333-333333333333'::uuid) $$,
+    '23514', null, 'a text with more than one item is rejected (#101)'
 );
 
 -- anon: no access at all (#40) -------------------------------------------
