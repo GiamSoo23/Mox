@@ -21,7 +21,7 @@ function message(text: string, isError = false) {
   box.hidden = text === "";
 }
 
-async function run(task: () => Promise<void>) {
+async function run(task: () => Promise<unknown>) {
   try {
     await task();
   } catch (error) {
@@ -114,15 +114,15 @@ async function enableNotifications() {
 // ---- Receiving (PROTOCOL.md §6) ----------------------------------------------
 
 /** Reads the slot. `fromTap` is true right after tapping a notification. */
-async function refresh(fromTap: boolean) {
-  if (!client) return;
+async function refresh(fromTap: boolean): Promise<boolean> {
+  if (!client) return false;
   const item = await client.current();
   if (!item) {
     latest = null;
     $("latest-title").textContent = "Nothing sent yet";
     $("latest-detail").textContent = "Send something from your computer.";
     for (const id of ["copy-text", "save-file", "preview"]) show(id, false);
-    return;
+    return false;
   }
   const fresh = isNew(item, store.deviceId(), store.lastHandled());
   latest = { item };
@@ -132,24 +132,77 @@ async function refresh(fromTap: boolean) {
   $("latest-detail").textContent = item.kind === "text"
     ? (fresh ? "New" : "")
     : `${humanSize(item.size_bytes)} · from ${sourceName(item.source_platform)}${fresh ? " · new" : ""}`;
-  show("copy-text", item.kind === "text");
+  show("copy-text", item.kind === "text" || isImage(item));
   show("save-file", item.kind !== "text");
   show("preview", false);
   if (fresh) store.setLastHandled(item.uploaded_at);
-  if (item.kind === "text") {
-    const text = await (await client.download()).text();
-    latest.text = text;
-    $("latest-detail").textContent = text;
-    // Right after a tap, iOS lets the page copy without another tap.
-    if (fromTap || fresh) await copyText(true);
+  if (item.kind === "text") $("latest-detail").textContent = await textOf();
+  if (isImage(item)) showPreview(await blobOf());
+  // Right after a tap, iOS lets the page copy without another tap.
+  if (fromTap || fresh) await copyLatest(true);
+  return fresh;
+}
+
+const isImage = (item: Item) => item.kind === "file" && (item.mime_type ?? "").startsWith("image/");
+
+/** The latest item's bytes, downloaded once. */
+async function blobOf(): Promise<Blob> {
+  if (!client || !latest) throw new Error("Nothing to copy yet.");
+  latest.blob ??= await client.download();
+  return latest.blob;
+}
+
+async function textOf(): Promise<string> {
+  if (latest && latest.text === undefined) latest.text = await (await blobOf()).text();
+  return latest?.text ?? "";
+}
+
+function showPreview(blob: Blob) {
+  const preview = $<HTMLImageElement>("preview");
+  preview.src = URL.createObjectURL(blob);
+  show("preview");
+}
+
+/** iPhone's clipboard takes images as PNG, so photos (JPEG, HEIC) are converted. */
+async function pngOf(blob: Blob): Promise<Blob> {
+  if (blob.type === "image/png") return blob;
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.src = url;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    canvas.getContext("2d")!.drawImage(image, 0, 0);
+    return await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob((png) => (png ? resolve(png) : reject(new Error("Couldn't prepare the image."))), "image/png")
+    );
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
-async function copyText(automatic = false) {
-  if (!latest?.text) return;
+/**
+ * Puts the latest text or image on the clipboard. The ClipboardItem is
+ * created right away with promises, so iPhone still counts the tap that
+ * started it while the content downloads.
+ */
+async function copyLatest(automatic = false) {
+  if (!latest) return;
+  const { item } = latest;
+  let content: Record<string, Promise<Blob>>;
+  if (item.kind === "text") {
+    content = { "text/plain": textOf().then((text) => new Blob([text], { type: "text/plain" })) };
+  } else if (isImage(item)) {
+    content = { "image/png": blobOf().then(pngOf) };
+  } else {
+    if (!automatic) message("This kind of file can't go on the clipboard. Use Save or share.");
+    return;
+  }
   try {
-    await navigator.clipboard.writeText(latest.text);
-    message("Copied. Paste it anywhere.");
+    await navigator.clipboard.write([new ClipboardItem(content)]);
+    message(item.kind === "text" ? "Copied. Paste it anywhere." : "Image copied. Paste it in any chat.");
   } catch {
     if (!automatic) throw new Error("iPhone didn't allow copying. Tap Copy again.");
     message("Tap Copy to put it on the clipboard.");
@@ -159,14 +212,10 @@ async function copyText(automatic = false) {
 async function saveFile() {
   if (!client || !latest) return;
   message("Downloading…");
-  latest.blob ??= await client.download();
-  const { item, blob } = latest;
+  const blob = await blobOf();
+  const { item } = latest;
   const file = new File([blob], item.original_name, { type: item.mime_type ?? blob.type });
-  if (file.type.startsWith("image/")) {
-    const preview = $<HTMLImageElement>("preview");
-    preview.src = URL.createObjectURL(file);
-    show("preview");
-  }
+  if (isImage(item)) showPreview(blob);
   message("");
   if (navigator.canShare?.({ files: [file] })) {
     // The share sheet has Save Image, Save to Files, and every app.
@@ -188,6 +237,7 @@ async function checkTap() {
   await cache.delete(TAP_URL);
   await refresh(true);
 }
+
 
 // ---- Sending ----------------------------------------------------------------
 
@@ -212,7 +262,7 @@ async function sendText() {
 
 // ---- Wiring -----------------------------------------------------------------
 
-function onClick(id: string, task: () => Promise<void>) {
+function onClick(id: string, task: () => Promise<unknown>) {
   $(id).addEventListener("click", (event) => {
     event.preventDefault();
     void run(task);
@@ -227,8 +277,12 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
-onClick("refresh", () => refresh(false));
-onClick("copy-text", () => copyText());
+onClick("refresh", async () => {
+  message("Checking…");
+  const fresh = await refresh(false);
+  if (!fresh) message(`Up to date · checked at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+});
+onClick("copy-text", () => copyLatest());
 onClick("save-file", saveFile);
 onClick("send-text", sendText);
 onClick("unpair", async () => {
