@@ -60,3 +60,15 @@ plus an unknown key (both tolerated).
 | `no-parameters.txt` | a link without parameters |
 
 Bundles (#18) get their own folder when that spec is written.
+
+## `bundles/`
+
+Zips for the bundle format (PROTOCOL.md §9), made by
+[bundles.py](bundles/bundles.py), which also holds the reference reader.
+
+| Folder | Clients must… |
+|---|---|
+| `valid/` | unpack the `.zip` to exactly the files in the matching `.json` |
+| `invalid/` | refuse it and unpack nothing: zip slip, absolute paths, backslashes, drive letters, symbolic links, too many entries, too big unpacked, a single file, not a zip |
+
+`python3 -I shared/fixtures/bundles/bundles.py check` verifies them, and CI runs it.

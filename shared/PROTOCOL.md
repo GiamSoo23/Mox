@@ -275,6 +275,23 @@ the QR stays easy to scan.
 
 Fixtures: [fixtures/pairing/](fixtures/pairing/).
 
-## 9. Coming next
+## 9. Bundle format, v1
 
-- **Bundle format:** how several files are zipped and unpacked safely (#18).
+Several files travel as **one zip** in the slot, with `kind` `bundle`
+(DESIGN.md §9). A single file is always sent as is, even if it's a `.zip`.
+
+**Sending**
+- Zip with no compression ("store"): photos and videos are already compressed.
+- File names in UTF-8, with `/` between folders, relative to the bundle's root. A folder keeps its structure.
+- Row: `original_name` like `Mox – 5 files.zip`, `mime_type` `application/zip`, `item_count` = the number of files (2 or more, folders don't count).
+- The whole zip is at most 50 MB. Check before packing, and say which files make it too big.
+
+**Receiving: refuse the whole bundle, unpacking nothing, if any entry**
+- has an absolute path, a drive letter (`C:`), a backslash, or a `..` part,
+- is a symbolic link,
+- or if there are more than **1000** entries, the files add up to more than **50 MB** unpacked, there are fewer than 2 files, or it isn't a zip.
+
+Accept "store" and "deflate". Skip folder entries, `__MACOSX/` and `.DS_Store`.
+When a name is taken, add ` (1)`, ` (2)`… before the extension, as for single files.
+
+Fixtures and a reference reader: [fixtures/bundles/](fixtures/bundles/).
