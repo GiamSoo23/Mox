@@ -13,6 +13,9 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
     var organizations: [Organization] = []
     var choices: SetupChoices?
     var work: Task<Void, Never>?
+    /// True while the project is being changed. Stopping then could leave the
+    /// project with a new owner this Mac never saved (#117).
+    var isProvisioning = false
     /// After a failed attempt, the project to preselect on the "where" page
     /// (one Mox just created, so trying again doesn't create a second one).
     var preferredProjectID: String?
@@ -54,6 +57,13 @@ final class SetupWindowController: NSWindowController, NSWindowDelegate {
         if let size = window?.contentView?.fittingSize {
             window?.setContentSize(NSSize(width: SetupPages.width, height: size.height))
         }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard isProvisioning else { return true }
+        Task { _ = await alert("Mox is still setting up", "Closing now could leave your project half set up. "
+            + "It only takes a moment more.") }
+        return false
     }
 
     func windowWillClose(_ notification: Notification) {

@@ -130,6 +130,8 @@ extension SetupWindowController {
                              body: "Keep this window open. You can keep using your Mac meanwhile.",
                              content: [list.view]))
         var created: Project?
+        isProvisioning = true
+        defer { isProvisioning = false }
         do {
             let project: Project
             switch target {

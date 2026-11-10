@@ -62,7 +62,10 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
     override suspend fun checkSchema() = withContext(Dispatchers.IO) {
         val rows = JSONArray(send { restGet("meta?select=schema_version", it) })
         if (rows.length() == 0) {
-            throw MoxException("Signed in, but this user isn't the owner of Mox in this project.")
+            throw MoxException(
+                "This code is out of date. On your computer, open Mox, choose Set Up Again, " +
+                    "and scan the new code."
+            )
         }
         val version = rows.getJSONObject(0).getInt("schema_version")
         if (version !=
@@ -199,7 +202,7 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
             }
         }
         throw MoxException(
-            "Couldn't sign in to your Supabase project. Pair again from your computer."
+            "This phone's pairing is out of date. On your computer, open Mox, choose Pair a Phone, and scan the code."
         )
     }
 
@@ -223,7 +226,7 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
         client.newCall(request).execute().use { resp ->
             if (!resp.isSuccessful) {
                 throw MoxException(
-                    "Couldn't sign in to your Supabase project. Pair again from your computer."
+                    "This phone's pairing is out of date. On your computer, open Mox, choose Pair a Phone, and scan the code."
                 )
             }
             val reply = JSONObject(resp.body?.string().orEmpty())
