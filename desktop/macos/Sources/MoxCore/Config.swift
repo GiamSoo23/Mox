@@ -8,6 +8,8 @@ public struct Config {
     /// user email and password).
     public let settings: MoxSettings?
     public let hotkey: HotKeyCombo
+    /// Sends the clipboard's text (#101).
+    public let textHotkey: HotKeyCombo
     public let pollInterval: TimeInterval
     /// The Mox OAuth app's secret, for "Sign in with Supabase" (#81, #82).
     /// Without it, the setup window asks for an access token instead.
@@ -39,9 +41,11 @@ public struct Config {
         // which intercepts the keystroke when Finder is the active app.
         let hotkey = HotKeyCombo.parse(env["MOX_HOTKEY"] ?? "cmd+shift+m")
             ?? HotKeyCombo(key: .m, modifiers: [.command, .shift])
+        let textHotkey = HotKeyCombo.parse(env["MOX_TEXT_HOTKEY"] ?? "ctrl+shift+m")
+            ?? HotKeyCombo(key: .m, modifiers: [.control, .shift])
         let poll = TimeInterval(env["MOX_POLL_SECONDS"] ?? "") ?? 5
 
-        return Config(settings: settings, hotkey: hotkey, pollInterval: poll,
+        return Config(settings: settings, hotkey: hotkey, textHotkey: textHotkey, pollInterval: poll,
                       oauthClientSecret: value("MOX_OAUTH_CLIENT_SECRET"))
     }
 
