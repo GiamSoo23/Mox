@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mox Test">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Push test · Mox</title>
+  <link rel="stylesheet" href="../../pair/style.css">
+  <script type="module" src="spike.js"></script>
+</head>
+<body>
+  <main>
+    <header><h1>Mox push test</h1></header>
+    <!-- A throwaway test for #54: can an iPhone get Web Push from Mox, and
+         what can tapping the notification do? Removed after the spike. -->
+    <section id="opened" class="card notice" hidden>
+      <h2>Opened from a notification</h2>
+      <p id="opened-detail"></p>
+      <a id="copy-received" class="button" href="#">Copy the received text</a>
+      <p id="copy-result" class="muted small"></p>
+    </section>
+
+    <section id="install" class="card" hidden>
+      <h2>1 · Add this page to your home screen</h2>
+      <p>In Safari, tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. Open
+        <strong>Mox Test</strong> from the home screen and continue there.</p>
+    </section>
+
+    <section id="enable" class="card" hidden>
+      <h2>2 · Turn on notifications</h2>
+      <a id="enable-button" class="button" href="#">Allow notifications</a>
+    </section>
+
+    <section id="subscribed" class="card" hidden>
+      <h2>3 · Send this to your Mac</h2>
+      <p>It tells your Mac where to send the test notifications. It isn't secret on its own.</p>
+      <a id="share-button" class="button" href="#">Share it (AirDrop to your Mac)</a>
+      <a id="copy-button" class="button secondary" href="#">Copy it</a>
+      <p id="share-result" class="muted small"></p>
+    </section>
+
+    <section class="card">
+      <h2>Status</h2>
+      <ul id="status" class="small"></ul>
+    </section>
+  </main>
+</body>
+</html>
