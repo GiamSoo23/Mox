@@ -18,13 +18,13 @@ data class CurrentFile(
     val sourceDeviceId: String,
     val uploadedAt: String
 ) {
+    /** Text to paste, not a file to save (#101). */
+    val isText: Boolean get() = kind == "text"
+
     /**
      * Checks the rules of §5. The database enforces them too; this lets the
      * app refuse a bad row with a clear message.
      */
-    /** Text to paste, not a file to save (#101). */
-    val isText: Boolean get() = kind == "text"
-
     fun validate() {
         if (id != 1) invalid("id must be 1")
         if (originalName.codePointCount(0, originalName.length) !in 1..255) {
