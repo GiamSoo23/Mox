@@ -149,12 +149,6 @@ fun MoxScreen(
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.SemiBold
         )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "One file, between devices",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         Spacer(Modifier.height(40.dp))
 
         when (state) {

@@ -17,9 +17,11 @@ public enum MoxError: LocalizedError, Equatable {
         case .tooLarge(let size):
             return "\(humanSize(size)) is too big: Mox sends files up to 50 MB."
         case .signInFailed:
-            return "Couldn't sign in to your Supabase project. Check the Mox user's email and password."
+            return "Mox couldn't sign in to your Supabase project, so its settings on this Mac are out of date. "
+                + "Open Mox and choose Set Up Again."
         case .notOwner:
-            return "Signed in, but this user isn't the owner of Mox in this project (mox.meta.owner_id)."
+            return "Mox's settings on this Mac are out of date: the project was set up again. "
+                + "Open Mox and choose Set Up Again."
         case .schemaMismatch(let version):
             return "Your Supabase project has Mox schema v\(version), but this app needs v2. "
                 + "Apply the latest migrations."
