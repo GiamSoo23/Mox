@@ -10,7 +10,7 @@ public enum ProvisioningStep: Equatable {
     case settingOwner
     case readingKey
     case settingUpPush
-    /// iPhone notifications couldn't be turned on. Mox works without them.
+    /// iPhone support couldn't be set up. Mox works without it.
     case pushSkipped(String)
     case finished
 }
@@ -174,14 +174,17 @@ public final class Provisioner {
         return (first?["id"] as? String).flatMap(UUID.init(uuidString:))
     }
 
-    /// Deploys the mox-push function with fresh keys and points the database
-    /// at it (#54). Optional: setup goes on without it.
+    /// Deploys the iPhone functions (#27, #54), gives mox-push fresh keys,
+    /// and points the database at it. Optional: setup goes on without it.
     private func setUpPush(_ project: Project) async throws {
         let vapid = P256.Signing.PrivateKey()
         let publicKey = PKCE.base64URL(vapid.publicKey.x963Representation)
         let secret = Self.randomPassword()
-        try await api.deployFunction(project: project.id, slug: "mox-push", entrypoint: "index.ts",
-                                     files: BundledFunctions.moxPush)
+        // mox-send lets the iPhone shortcut send (#27); mox-push sends notifications.
+        for function in BundledFunctions.all {
+            try await api.deployFunction(project: project.id, slug: function.slug, entrypoint: "index.ts",
+                                         files: function.files)
+        }
         try await api.setSecrets(project: project.id, [
             "MOX_PUSH_SECRET": secret,
             "MOX_VAPID_PUBLIC_KEY": publicKey,

@@ -84,7 +84,7 @@ final class SetupProgressList {
             case .user: return "Create the Mox user"
             case .owner: return "Make that user the only one allowed in"
             case .key: return "Read the app key"
-            case .push: return "Turn on iPhone notifications"
+            case .push: return "Set up iPhone support"
             }
         }
     }
@@ -142,7 +142,7 @@ final class SetupProgressList {
         case .settingUpPush: mark(current: .push)
         case .pushSkipped(let reason):
             skipped.insert(.push)
-            labels[.push]?.stringValue = "iPhone notifications are off: \(reason)"
+            labels[.push]?.stringValue = "iPhone support is off: \(reason)"
         case .finished: mark(current: nil, allDone: true)
         }
     }

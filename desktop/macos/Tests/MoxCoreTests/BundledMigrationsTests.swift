@@ -21,17 +21,22 @@ final class BundledMigrationsTests: XCTestCase {
     }
 
     func testFunctionsMatchTheBackendExactly() throws {
-        let dir = Fixtures.root.deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("backend/supabase/functions/mox-push")
-        let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
-            .filter { $0.pathExtension == "ts" && !$0.lastPathComponent.hasSuffix("_test.ts") }
-            .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        XCTAssertEqual(BundledFunctions.moxPush.map(\.name), files.map(\.lastPathComponent),
-                       "run desktop/macos/scripts/sync-migrations.py")
-        for (bundled, file) in zip(BundledFunctions.moxPush, files) {
-            let code = try String(contentsOf: file, encoding: .utf8)
-            XCTAssertEqual(bundled.content, code.trimmingCharacters(in: CharacterSet(charactersIn: "\n")),
-                           "\(bundled.name) drifted: run desktop/macos/scripts/sync-migrations.py")
+        let root = Fixtures.root.deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("backend/supabase/functions")
+        let slugs = try FileManager.default.contentsOfDirectory(atPath: root.path)
+            .filter { !$0.hasPrefix(".") }.sorted()
+        XCTAssertEqual(BundledFunctions.all.map(\.slug), slugs, "run desktop/macos/scripts/sync-migrations.py")
+        for function in BundledFunctions.all {
+            let dir = root.appendingPathComponent(function.slug)
+            let files = try FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+                .filter { $0.pathExtension == "ts" && !$0.lastPathComponent.hasSuffix("_test.ts") }
+                .sorted { $0.lastPathComponent < $1.lastPathComponent }
+            XCTAssertEqual(function.files.map(\.name), files.map(\.lastPathComponent))
+            for (bundled, file) in zip(function.files, files) {
+                let code = try String(contentsOf: file, encoding: .utf8)
+                XCTAssertEqual(bundled.content, code.trimmingCharacters(in: CharacterSet(charactersIn: "\n")),
+                               "\(function.slug)/\(bundled.name) drifted: run scripts/sync-migrations.py")
+            }
         }
     }
 }

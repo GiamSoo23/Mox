@@ -22,6 +22,7 @@ final class ProvisionerTests: XCTestCase {
     private var ownerSQL: String?
     private var deletedUserPath: String?
     private var deployedFunction = false
+    private var deployedSlugs: [String] = []
     private var secretsSet: String?
     private var pushSQL: String?
     private var deployStatus = 201
@@ -61,6 +62,7 @@ final class ProvisionerTests: XCTestCase {
             deletedUserPath = path
             return ok("{}")
         case ("POST", "/v1/projects/ref/functions/deploy"):
+            deployedSlugs.append(request.url?.query ?? "")
             deployedFunction = deployStatus < 300
             return (deployStatus, Data(#"{"message":"missing scope: edge_functions_write"}"#.utf8))
         case ("POST", "/v1/projects/ref/secrets"):
@@ -154,6 +156,7 @@ final class ProvisionerTests: XCTestCase {
     func testSetupTurnsOnIPhoneNotifications() async throws {
         _ = try await makeProvisioner().provision(project: project())
         XCTAssertTrue(deployedFunction)
+        XCTAssertEqual(deployedSlugs, ["slug=mox-push", "slug=mox-send"])
         XCTAssertTrue(secretsSet?.contains("MOX_VAPID_PRIVATE_KEY") ?? false)
         XCTAssertTrue(pushSQL?.contains("https://ref.supabase.co/functions/v1/mox-push") ?? false)
         XCTAssertTrue(pushSQL?.contains("vapid_public_key") ?? false)
