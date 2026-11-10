@@ -49,7 +49,28 @@ public final class SupabaseService {
         guard size > 0 else { throw MoxError.upload("The file is empty.") }
         guard size <= CurrentFile.maxSize else { throw MoxError.tooLarge(size) }
         let mime = MimeTypes.forExtension(url.pathExtension)
+        return try await upload(url, name: url.lastPathComponent, mime: mime, size: size, kind: "file")
+    }
 
+    /// Sends plain text as a text item (#101).
+    public func uploadText(_ text: String) async throws -> CurrentFile {
+        let data = try TextPayload.encode(text)
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mox-text-\(UUID().uuidString).txt")
+        try data.write(to: tmp)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        return try await upload(tmp, name: TextPayload.fileName, mime: TextPayload.mime,
+                                size: Int64(data.count), kind: "text")
+    }
+
+    /// The current item's contents as text (#101).
+    public func downloadText() async throws -> String {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("mox-text-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        try await downloadCurrent(to: tmp)
+        return TextPayload.decode(try Data(contentsOf: tmp))
+    }
+
+    private func upload(_ url: URL, name: String, mime: String, size: Int64, kind: String) async throws -> CurrentFile {
         _ = try await send(upload: url) { token in
             var req = self.request("storage/v1/object/\(self.bucket)/\(self.objectName)", token: token)
             req.httpMethod = "POST"
@@ -60,10 +81,10 @@ public final class SupabaseService {
 
         let row: [String: Any] = [
             "id": 1,
-            "original_name": url.lastPathComponent,
+            "original_name": name,
             "mime_type": mime,
             "size_bytes": size,
-            "kind": "file",
+            "kind": kind,
             "item_count": 1,
             "source_platform": "macos",
             "source_device_id": deviceID.uuidString.lowercased()

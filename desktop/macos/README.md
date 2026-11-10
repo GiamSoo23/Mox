@@ -74,6 +74,7 @@ complete `.env` is copied into the Keychain:
 | `MOX_USER_EMAIL`           | the Mox user's email                           |
 | `MOX_USER_PASSWORD`        | the Mox user's password                        |
 | `MOX_HOTKEY`               | (optional) hotkey, default `cmd+shift+m`       |
+| `MOX_TEXT_HOTKEY`          | (optional) sends copied text, default `ctrl+shift+m` |
 | `MOX_POLL_SECONDS`         | (optional) poll interval, default `5`          |
 | `MOX_OAUTH_CLIENT_SECRET`  | (optional) enables "Sign in with Supabase"     |
 
