@@ -132,6 +132,20 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Sends plain text shared from another app (#101). */
+    fun uploadText(text: String) = viewModelScope.launch {
+        val backend = repo ?: run {
+            _state.value = UiState.Error(NOT_PAIRED_MESSAGE)
+            return@launch
+        }
+        _state.value = UiState.Uploading("text")
+        try {
+            _state.value = UiState.Sent(backend.uploadText(text))
+        } catch (e: Exception) {
+            _state.value = UiState.Error(e.message ?: "Couldn't send the text")
+        }
+    }
+
     fun saveAndShare() = viewModelScope.launch {
         val s = _state.value as? UiState.Ready ?: return@launch
         try {

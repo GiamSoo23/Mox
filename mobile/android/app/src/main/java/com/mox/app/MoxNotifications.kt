@@ -67,4 +67,35 @@ object MoxNotifications {
             .build()
         ctx.getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notif)
     }
+
+    /** A text arrived: show it, and offer a tap to copy where the background copy was refused. */
+    fun showText(ctx: Context, text: String, from: String, copiedToClipboard: Boolean) {
+        ensureChannel(ctx)
+        val copy = Intent(ctx, CopyToClipboardActivity::class.java).apply {
+            putExtra(CopyToClipboardActivity.EXTRA_TEXT, text)
+            putExtra(CopyToClipboardActivity.EXTRA_LABEL, "Text from $from")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        val pi = PendingIntent.getActivity(
+            ctx,
+            TEXT_NOTIF_ID,
+            copy,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val preview = TextPayload.preview(text)
+        val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(
+                "Text from $from · ${if (copiedToClipboard) "in clipboard" else "tap to copy"}"
+            )
+            .setContentText(preview)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(preview))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pi)
+            .build()
+        ctx.getSystemService(NotificationManager::class.java).notify(TEXT_NOTIF_ID, notif)
+    }
+
+    private const val TEXT_NOTIF_ID = 1003
 }

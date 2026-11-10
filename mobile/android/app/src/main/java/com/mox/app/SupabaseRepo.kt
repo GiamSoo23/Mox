@@ -113,12 +113,34 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
                 .post(body)
                 .build()
         }
+        replaceRow(displayName, effectiveMime, sizeBytes, kind = "file")
+    }
+
+    override suspend fun uploadText(text: String): CurrentFile = withContext(Dispatchers.IO) {
+        val bytes = TextPayload.encode(text)
+        send { token ->
+            Request.Builder()
+                .url("$baseUrl/storage/v1/object/$bucket/$objectName")
+                .headers(authHeaders(token, "x-upsert" to "true"))
+                .post(bytes.toRequestBody(TextPayload.MIME.toMediaType()))
+                .build()
+        }
+        replaceRow(TextPayload.FILE_NAME, TextPayload.MIME, bytes.size.toLong(), kind = "text")
+    }
+
+    /** §4.4: makes the uploaded bytes the current item. */
+    private suspend fun replaceRow(
+        name: String,
+        mime: String,
+        size: Long,
+        kind: String
+    ): CurrentFile {
         val row = JSONObject()
             .put("id", 1)
-            .put("original_name", displayName)
-            .put("mime_type", effectiveMime)
-            .put("size_bytes", sizeBytes)
-            .put("kind", "file")
+            .put("original_name", name)
+            .put("mime_type", mime)
+            .put("size_bytes", size)
+            .put("kind", kind)
             .put("item_count", 1)
             .put("source_platform", "android")
             .put("source_device_id", deviceId)
@@ -135,7 +157,7 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
                 .post(row.toString().toRequestBody(json))
                 .build()
         }
-        CurrentFile.fromJson(JSONArray(written).getJSONObject(0))
+        return CurrentFile.fromJson(JSONArray(written).getJSONObject(0))
     }
 
     override suspend fun signedDownloadUrl(expiresIn: Int): String = withContext(Dispatchers.IO) {

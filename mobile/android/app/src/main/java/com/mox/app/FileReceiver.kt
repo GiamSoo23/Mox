@@ -53,7 +53,7 @@ class FileReceiver(
             current.uploadedAt != lastHandled
         ) {
             setLastHandled(current.uploadedAt)
-            saveCopyAndNotify(current)
+            if (current.isText) copyText(current) else saveCopyAndNotify(current)
         }
         current
     }
@@ -92,6 +92,34 @@ class FileReceiver(
             )
         } catch (e: Exception) {
             android.util.Log.w("Mox", "Auto-save failed: ${e.message}")
+        }
+    }
+
+    /** A text goes on the clipboard as text, and no file is saved (#101). */
+    private suspend fun copyText(item: CurrentFile) {
+        try {
+            val buffer = java.io.ByteArrayOutputStream()
+            backend.downloadToStream(buffer)
+            val text = TextPayload.decode(buffer.toByteArray())
+            val clipped = withContext(Dispatchers.Main) {
+                runCatching {
+                    val manager = ctx.getSystemService(
+                        Context.CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+                    manager.setPrimaryClip(
+                        ClipData.newPlainText("Text from ${item.sourceName}", text)
+                    )
+                    true
+                }.getOrDefault(false)
+            }
+            MoxNotifications.showText(
+                ctx,
+                text,
+                from = item.sourceName,
+                copiedToClipboard = clipped
+            )
+        } catch (e: Exception) {
+            android.util.Log.w("Mox", "Receiving text failed: ${e.message}")
         }
     }
 

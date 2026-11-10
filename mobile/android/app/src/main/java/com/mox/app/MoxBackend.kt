@@ -25,6 +25,9 @@ interface MoxBackend {
         mime: String?
     ): CurrentFile
 
+    /** Uploads plain text and makes it the current item (#101). */
+    suspend fun uploadText(text: String): CurrentFile
+
     /** A short-lived URL to download the current file without credentials (§4.5). */
     suspend fun signedDownloadUrl(expiresIn: Int = 600): String
 

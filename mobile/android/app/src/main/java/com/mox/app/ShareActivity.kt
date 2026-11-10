@@ -40,8 +40,10 @@ class ShareActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val uri = extractUri(intent)
-        if (uri == null) {
-            Toast.makeText(this, "Mox: no file attached.", Toast.LENGTH_SHORT).show()
+        // Plain text shared from another app, such as a link or a note (#101).
+        val text = if (uri == null) intent.getStringExtra(Intent.EXTRA_TEXT) else null
+        if (uri == null && text.isNullOrBlank()) {
+            Toast.makeText(this, "Mox: nothing to send.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -66,7 +68,7 @@ class ShareActivity : ComponentActivity() {
             }
         }
 
-        vm.upload(uri)
+        if (uri != null) vm.upload(uri) else vm.uploadText(text!!)
     }
 
     private fun extractUri(intent: Intent): Uri? {
