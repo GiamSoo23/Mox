@@ -41,8 +41,12 @@ function render() {
   }
   if (!settings) {
     show("pair");
+    // Opened with the pairing code in the address: pair without pasting.
+    if (location.hash.length > 1) void run(() => pair(location.href));
     return;
   }
+  // Never keep the code (it holds the Mox password) in the address.
+  if (location.hash) history.replaceState(null, "", location.pathname);
   client = new MoxClient(settings, store.deviceId());
   $("paired-with").textContent = settings.desktopName ?? "your computer";
   show("home");
