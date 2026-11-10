@@ -1,5 +1,16 @@
-// Service worker for the push test (#54): shows each push as a
-// notification, and opens the page with the payload when it's tapped.
+// Service worker for the push test (#54), version 2. Shows each push as a
+// notification. When it's tapped, it saves the payload where the page can
+// read it, because iPhone opens the app without passing anything along.
+const VERSION = "test v2";
+const TAP = new URL("last-tap", self.registration.scope).href;
+
+self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+
+self.addEventListener("message", (event) => {
+  if (event.data === "version") event.source.postMessage({ type: "version", version: VERSION });
+});
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -7,28 +18,23 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Mox";
-  const url = new URL("./", self.registration.scope);
-  url.searchParams.set("from", "push");
-  url.searchParams.set("sent", data.sentAt || "");
-  url.searchParams.set("text", data.text || "");
-  event.waitUntil(self.registration.showNotification(title, {
+  event.waitUntil(self.registration.showNotification(data.title || "Mox", {
     body: data.body || "",
-    data: { url: url.href },
+    data: { text: data.text || "", sentAt: data.sentAt || "" },
   }));
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data && event.notification.data.url;
+  const tap = { ...event.notification.data, tappedAt: Date.now() };
   event.waitUntil((async () => {
+    const cache = await caches.open("mox-spike");
+    await cache.put(TAP, new Response(JSON.stringify(tap)));
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {
-      if ("navigate" in client) {
-        await client.navigate(target);
-        return client.focus();
-      }
+      client.postMessage({ type: "tapped" });
+      if ("focus" in client) return client.focus();
     }
-    return self.clients.openWindow(target);
+    return self.clients.openWindow(new URL("./", self.registration.scope).href);
   })());
 });

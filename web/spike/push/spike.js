@@ -63,28 +63,39 @@ async function copy(text, result) {
   }
 }
 
+/** Shows the last tapped notification, saved by the service worker. */
+async function showTap() {
+  const cache = await caches.open("mox-spike");
+  const saved = await cache.match(new URL("last-tap", location.href).href);
+  if (!saved) return;
+  await cache.delete(new URL("last-tap", location.href).href);
+  const tap = await saved.json();
+  const delay = tap.sentAt ? Math.round((tap.tappedAt - Number(tap.sentAt)) / 1000) : null;
+  $("opened").hidden = false;
+  $("opened-detail").textContent = `Tapped ${delay === null ? "" : `${delay} s after it was sent`}. Text: "${tap.text}"`;
+  // Can the page copy right after the tap, with no second tap? (iOS may refuse.)
+  const auto = await copy(tap.text, $("copy-result"));
+  log(`Copy right after opening: ${auto ? "worked" : "refused"}`);
+  $("copy-received").onclick = (event) => { event.preventDefault(); copy(tap.text, $("copy-result")); };
+}
+
 async function start() {
   log(`Opened ${standalone ? "from the home screen" : "in the browser"}`);
-  const params = new URLSearchParams(location.search);
-  if (params.get("from") === "push") {
-    const sent = params.get("sent");
-    const delay = sent ? Math.round((Date.now() - Number(sent)) / 1000) : null;
-    const text = params.get("text") || "";
-    $("opened").hidden = false;
-    $("opened-detail").textContent = `Tapped ${delay === null ? "" : `${delay} s after it was sent`}. ` +
-      `Text: "${text}"`;
-    // Can the page copy right after the tap, with no second tap? (iOS may refuse.)
-    const auto = await copy(text, $("copy-result"));
-    log(`Copy right after opening: ${auto ? "worked" : "refused"}`);
-    $("copy-received").onclick = (event) => { event.preventDefault(); copy(text, $("copy-result")); };
-  }
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     log("This browser can't receive Web Push here.");
     if (!standalone) $("install").hidden = false;
     return;
   }
-  await navigator.serviceWorker.register("sw.js");
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data && event.data.type === "tapped") showTap();
+    if (event.data && event.data.type === "version") log(`Service worker: ${event.data.version}`);
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) showTap(); });
+  await navigator.serviceWorker.register("sw.js", { updateViaCache: "none" });
   const registration = await navigator.serviceWorker.ready;
+  registration.update().catch(() => {});
+  if (registration.active) registration.active.postMessage("version");
+  await showTap();
   const existing = await registration.pushManager.getSubscription();
   if (existing) {
     await showSubscription(existing);
