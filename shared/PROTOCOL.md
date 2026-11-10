@@ -164,8 +164,8 @@ while disconnected are lost.
 | `original_name` | string | 1–255 characters | client |
 | `mime_type` | string or `null` | | client |
 | `size_bytes` | int | 1 – 52 428 800 (50 MB) | client |
-| `kind` | string | `file` or `bundle` | client |
-| `item_count` | int | `1` for a file, `2`+ for a bundle | client |
+| `kind` | string | `file`, `bundle` or `text` | client |
+| `item_count` | int | `1` for a file or a text, `2`+ for a bundle | client |
 | `source_platform` | string | `macos`, `windows`, `android` or `ios` | client |
 | `source_device_id` | UUID string | required | client |
 | `uploaded_at` | ISO 8601 timestamp | | **database** |
@@ -192,6 +192,10 @@ If 4.3 fails, don't touch the row.
 Then 4.5 → 4.6, and save it where the platform expects (Android: photos and
 videos to the Camera folder, #43). If `kind` is `bundle`, unpack it (#18).
 **Never unpack a `file`, even if it's a `.zip`.**
+
+If `kind` is `text`, the object is UTF-8 text (`mime_type` `text/plain`):
+put its contents on the clipboard **as text** and save no file. Senders keep
+a text under 1 MB and name it `Text.txt`.
 
 On the first poll after launch, update the UI but don't notify for a file
 that was already handled.

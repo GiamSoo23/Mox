@@ -8,13 +8,14 @@ final class MenuBarController: NSObject {
     /// Replaced when the setup window finishes (#81).
     var supabase: SupabaseService?
     private let deviceID: UUID
-    private var current: CurrentFile?
+    private(set) var current: CurrentFile?
     /// uploaded_at of the last file this Mac received, kept across launches
     /// so a file sent while the Mac was off still arrives (PROTOCOL.md §6).
     private let lastHandledKey = "MoxLastHandledUploadedAt"
     /// Baseline when the slot was empty on the first poll (#71).
     private static let emptySlot = "empty"
     private let hotkeyHuman: String
+    private let textHotkeyHuman: String
     private var lastStatus: String?
     /// Set by the app delegate when Mox is configured; opens the QR window.
     var onPairPhone: (() -> Void)? {
@@ -32,10 +33,11 @@ final class MenuBarController: NSObject {
         rebuildMenu()
     }
 
-    init(supabase: SupabaseService?, deviceID: UUID, hotkeyHuman: String) {
+    init(supabase: SupabaseService?, deviceID: UUID, hotkeyHuman: String, textHotkeyHuman: String) {
         self.supabase = supabase
         self.deviceID = deviceID
         self.hotkeyHuman = hotkeyHuman
+        self.textHotkeyHuman = textHotkeyHuman
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -72,7 +74,7 @@ final class MenuBarController: NSObject {
         guard let file = current, file.sourceDeviceId != deviceID, file.uploadedAt != lastHandled else { return }
         defaults.set(file.uploadedAt, forKey: lastHandledKey)
         tintBusy(false, accent: true)
-        autoSaveFromPhone(file)
+        if file.isText { receiveText(file) } else { autoSaveFromPhone(file) }
     }
 
     /// Downloads a phone-sent file into ~/Downloads with a unique name and
@@ -161,6 +163,7 @@ final class MenuBarController: NSObject {
                               keyEquivalent: "")
         send.target = self
         menu.addItem(send)
+        menu.addItem(actionItem("Send Copied Text  (\(textHotkeyHuman))", #selector(sendCopiedText)))
         if onPairPhone != nil {
             menu.addItem(actionItem("Pair a Phone…", #selector(pairPhone)))
         }
@@ -191,7 +194,9 @@ final class MenuBarController: NSObject {
 
     /// The current file and what can be done with it, or "No file yet".
     private func addFileItems(to menu: NSMenu) {
-        if let file = current {
+        if let file = current, file.isText {
+            addTextItems(file, to: menu)
+        } else if let file = current {
             let title = NSMenuItem(title: file.originalName, action: nil, keyEquivalent: "")
             title.isEnabled = false
             menu.addItem(title)

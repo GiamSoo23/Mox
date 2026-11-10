@@ -2,8 +2,8 @@ import AppKit
 import MoxCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var menuBar: MenuBarController?
-    private var supabase: SupabaseService?
+    var menuBar: MenuBarController?
+    var supabase: SupabaseService?
     private var hotkey = HotKeyManager()
     private var pollTimer: Timer?
     private var pollInterval: TimeInterval = 5
@@ -11,12 +11,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var setupWindow: SetupWindowController?
     private var homeWindow: HomeWindowController?
-    private var config = Config.load()
+    var config = Config.load()
     private let deviceID = DeviceIdentity.id
 
     func applicationDidFinishLaunching(_ note: Notification) {
         if AppMover.offerIfNeeded() { return }
-        let bar = MenuBarController(supabase: nil, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
+        let bar = MenuBarController(supabase: nil, deviceID: deviceID, hotkeyHuman: config.hotkey.human,
+                                    textHotkeyHuman: config.textHotkey.human)
         self.menuBar = bar
         self.pollInterval = config.pollInterval
         bar.onSetUp = { [weak self] in self?.showSetup() }
@@ -30,6 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self,
             selector: #selector(handleSendSelection),
             name: .moxSendSelection, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(handleSendText),
+                                               name: .moxSendText, object: nil)
+        hotkey.register(config.textHotkey, id: 2) { [weak self] in self?.handleSendText() }
 
         let regStatus = hotkey.register(config.hotkey) { [weak self] in
             self?.handleSendSelection()

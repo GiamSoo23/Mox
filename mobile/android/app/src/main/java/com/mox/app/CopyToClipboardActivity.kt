@@ -17,7 +17,14 @@ class CopyToClipboardActivity : Activity() {
         super.onCreate(savedInstanceState)
         val uri: Uri? = intent.getParcelableExtra(EXTRA_URI)
         val label = intent.getStringExtra(EXTRA_LABEL) ?: "Mox file"
-        if (uri != null) {
+        val text = intent.getStringExtra(EXTRA_TEXT)
+        if (text != null) {
+            runCatching {
+                val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText(label, text))
+                Toast.makeText(this, "Copied — paste with the keyboard", Toast.LENGTH_SHORT).show()
+            }
+        } else if (uri != null) {
             runCatching {
                 val clip = ClipData.newUri(contentResolver, label, uri)
                 val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -33,5 +40,6 @@ class CopyToClipboardActivity : Activity() {
     companion object {
         const val EXTRA_URI = "mox.uri"
         const val EXTRA_LABEL = "mox.label"
+        const val EXTRA_TEXT = "mox.text"
     }
 }
