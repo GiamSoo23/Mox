@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Talks only to the Supabase project you pair with. No analytics, no third-party scripts. -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src https://*.supabase.co; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Mox">
+  <meta name="theme-color" content="#0f1729">
+  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <title>Mox for iPhone</title>
+  <link rel="stylesheet" href="../pair/style.css">
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <main>
+    <header><h1>Mox</h1></header>
+
+    <p id="message" class="card notice" hidden></p>
+
+    <section id="install" hidden>
+      <ol class="steps">
+        <li id="copy-code-step" class="card" hidden>
+          <h2>1 · Copy your pairing code</h2>
+          <p>It connects Mox on this iPhone to your computer.</p>
+          <a id="copy-code" class="button" href="#">Copy pairing code</a>
+        </li>
+        <li class="card">
+          <h2>Add Mox to your home screen</h2>
+          <p>Tap <strong>Share</strong>, then <strong>Add to Home Screen</strong>. iPhone only sends
+            notifications to apps on the home screen.</p>
+        </li>
+        <li class="card">
+          <h2>Open Mox from the home screen</h2>
+          <p>Then tap <strong>Paste pairing code</strong>.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section id="pair" class="card" hidden>
+      <h2>Pair with your computer</h2>
+      <p>On your computer, open Mox and choose <strong>Pair a Phone</strong>. Copy the code there, or with
+        <strong>Copy pairing code</strong> after scanning it, then:</p>
+      <a id="paste-code" class="button" href="#">Paste pairing code</a>
+      <p class="muted small">Or paste it here:</p>
+      <textarea id="typed-code" aria-label="Pairing code"></textarea>
+      <a id="pair-typed" class="button secondary" href="#">Pair</a>
+    </section>
+
+    <section id="home" hidden>
+      <div class="card summary">
+        <p class="label">Paired with</p>
+        <p id="paired-with" class="big"></p>
+      </div>
+
+      <div id="notify-card" class="card" hidden>
+        <div id="notify-off">
+          <h2>Get notified</h2>
+          <p>Know when your computer sends something, even with Mox closed.</p>
+          <a id="enable-notifications" class="button" href="#">Turn on notifications</a>
+        </div>
+        <p id="notify-on" class="muted" hidden>Notifications are on.</p>
+      </div>
+
+      <div class="card">
+        <h2 id="latest-title">Latest</h2>
+        <p id="latest-detail" class="muted"></p>
+        <img id="preview" alt="Received image" hidden>
+        <a id="copy-text" class="button" href="#" hidden>Copy</a>
+        <a id="save-file" class="button" href="#" hidden>Save or share…</a>
+        <a id="refresh" class="button secondary" href="#">Check again</a>
+      </div>
+
+      <div class="card">
+        <h2>Send to your computer</h2>
+        <label class="button file-button">Send a photo or file<input id="file-to-send" type="file"></label>
+        <textarea id="text-to-send" placeholder="Or type or paste text" aria-label="Text to send"></textarea>
+        <a id="send-text" class="button secondary" href="#">Send text</a>
+      </div>
+
+      <p class="center"><a id="unpair" class="small" href="#">Unpair this iPhone</a></p>
+    </section>
+  </main>
+</body>
+</html>

@@ -59,6 +59,10 @@ function render() {
     setOpenEnabled(false, intent);
     $("app-missing").hidden = !cameBackWithoutApp(window.location.href);
     show("android");
+  } else if (where === "ios") {
+    // Same fragment: the parameters still never reach a server.
+    $("open-iphone").href = `../app/#${raw}`;
+    show("ios");
   } else {
     show(where);
   }

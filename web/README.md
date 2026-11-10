@@ -1,12 +1,13 @@
 # Mox web
 
 Static pages served on GitHub Pages at <https://giamsoo23.github.io/Mox/>.
-No framework, no build step, no dependencies.
+No framework. Mox for iPhone is TypeScript, bundled by esbuild in CI.
 
 | Path | What it is |
 |---|---|
 | `pair/` | **The pairing page.** The desktop's QR code points here. It reads the pairing link from the URL fragment ([PROTOCOL.md §8](../shared/PROTOCOL.md)) and offers the next step: on Android, install Mox and/or open it through an `intent://` hand-off |
 | `pair/pairing.js` | The link parser. Pure functions, used by the page and the tests |
+| `app/` | **Mox for iPhone** (#54): a home screen web app that pairs, receives through Web Push, and sends photos, files and text. Sources in `app/src/` |
 | `index.html` | A small landing page |
 
 Privacy: the pairing data stays in the fragment, which browsers don't send
@@ -16,7 +17,10 @@ script and styles, and there are no analytics or third-party requests.
 ## Test
 
 ```bash
-cd web && npm test     # node --test, runs pairing.js against shared/fixtures/pairing/
+cd web && npm ci
+npm test          # pairing parser and iPhone protocol rules against shared/fixtures/
+npm run typecheck # TypeScript
+npm run build     # writes app/app.js
 ```
 
 Preview locally (ES modules need http, not file://):

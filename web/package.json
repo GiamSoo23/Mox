@@ -1,9 +1,16 @@
 {
   "name": "mox-web",
   "private": true,
-  "description": "Static pages served on GitHub Pages: the pairing page.",
+  "description": "Static pages served on GitHub Pages: the pairing page and Mox for iPhone.",
   "type": "module",
   "scripts": {
-    "test": "node --test \"**/*.test.js\""
+    "test": "node --test \"pair/*.test.js\" \"app/src/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "build": "esbuild app/src/app.ts --bundle --format=esm --target=safari16 --outfile=app/app.js"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
   }
 }
