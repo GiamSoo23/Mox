@@ -16,6 +16,9 @@ public struct CurrentFile: Decodable, Equatable {
     public let sourceDeviceId: UUID
     public let uploadedAt: String
 
+    /// Text to paste, not a file to save (#101).
+    public var isText: Bool { kind == "text" }
+
     /// The row's JSON uses the table's snake_case column names. Unknown
     /// columns are ignored, so newer schemas don't break this client.
     enum CodingKeys: String, CodingKey {
@@ -41,7 +44,7 @@ public struct CurrentFile: Decodable, Equatable {
             throw MoxError.invalidRow("the size must be between 1 byte and 50 MB")
         }
         switch (kind, itemCount) {
-        case ("file", 1): break
+        case ("file", 1), ("text", 1): break
         case ("bundle", 2...): break
         default: throw MoxError.invalidRow("kind \(kind) can't have \(itemCount) items")
         }
