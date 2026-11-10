@@ -21,6 +21,10 @@ final class ProvisionerTests: XCTestCase {
     private var createdUser = false
     private var ownerSQL: String?
     private var deletedUserPath: String?
+    private var deployedFunction = false
+    private var secretsSet: String?
+    private var pushSQL: String?
+    private var deployStatus = 201
     private let userID = "390e2d0b-0494-4f4e-a248-ea81c182f505"
     private let oldUserID = "11111111-2222-4333-8444-555555555555"
 
@@ -56,6 +60,12 @@ final class ProvisionerTests: XCTestCase {
         case ("DELETE", "/auth/v1/admin/users/\(oldUserID)"):
             deletedUserPath = path
             return ok("{}")
+        case ("POST", "/v1/projects/ref/functions/deploy"):
+            deployedFunction = deployStatus < 300
+            return (deployStatus, Data(#"{"message":"missing scope: edge_functions_write"}"#.utf8))
+        case ("POST", "/v1/projects/ref/secrets"):
+            secretsSet = MockURLProtocol.text(body)
+            return ok("{}")
         case ("POST", "/v1/projects/ref/database/query"):
             return ok(routeSQL(json?["query"] as? String ?? ""))
         default:
@@ -72,6 +82,10 @@ final class ProvisionerTests: XCTestCase {
             return fake.generatedOwner.map { #"[{"id":"\#($0)"}]"# } ?? "[]"
         }
         if query.contains("has_owner") { return #"[{"has_owner":\#(fake.hasOwner)}]"# }
+        if query.contains("mox.push_config") {
+            pushSQL = query
+            return "[]"
+        }
         if query.contains("update mox.meta set owner_id") {
             ownerSQL = query
         } else if !query.contains("supabase_migrations") {
@@ -134,6 +148,24 @@ final class ProvisionerTests: XCTestCase {
         fake.generatedOwner = nil
         _ = try await makeProvisioner().provision(project: project(), replaceExistingOwner: true)
         XCTAssertNil(deletedUserPath)
+    }
+
+    func testSetupTurnsOnIPhoneNotifications() async throws {
+        _ = try await makeProvisioner().provision(project: project())
+        XCTAssertTrue(deployedFunction)
+        XCTAssertTrue(secretsSet?.contains("MOX_VAPID_PRIVATE_KEY") ?? false)
+        XCTAssertTrue(pushSQL?.contains("https://ref.supabase.co/functions/v1/mox-push") ?? false)
+        XCTAssertTrue(pushSQL?.contains("vapid_public_key") ?? false)
+    }
+
+    func testSetupGoesOnWhenNotificationsCantBeTurnedOn() async throws {
+        deployStatus = 403
+        var steps: [ProvisioningStep] = []
+        let settings = try await makeProvisioner().provision(project: project()) { steps.append($0) }
+        XCTAssertEqual(settings.publishableKey, "sb_publishable_x")
+        XCTAssertNil(pushSQL, "the database isn't pointed at a function that wasn't deployed")
+        XCTAssertTrue(steps.contains { if case .pushSkipped = $0 { return true }; return false })
+        XCTAssertEqual(steps.last, .finished)
     }
 
     func testOnlyMissingMigrationsAreApplied() async throws {

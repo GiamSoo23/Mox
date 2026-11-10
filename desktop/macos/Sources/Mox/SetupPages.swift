@@ -73,7 +73,7 @@ enum SetupPages {
 /// The checklist shown while Mox sets up a project.
 final class SetupProgressList {
     enum Row: Int, CaseIterable {
-        case creatingProject, waiting, migrations, schema, user, owner, key
+        case creatingProject, waiting, migrations, schema, user, owner, key, push
 
         var title: String {
             switch self {
@@ -84,6 +84,7 @@ final class SetupProgressList {
             case .user: return "Create the Mox user"
             case .owner: return "Make that user the only one allowed in"
             case .key: return "Read the app key"
+            case .push: return "Turn on iPhone notifications"
             }
         }
     }
@@ -92,6 +93,7 @@ final class SetupProgressList {
     private var icons: [Row: NSImageView] = [:]
     private var spinners: [Row: NSProgressIndicator] = [:]
     private var labels: [Row: NSTextField] = [:]
+    private var skipped: Set<Row> = []
     private let rows: [Row]
     /// Overall progress across every row, so it's clear things are moving.
     private let bar = NSProgressIndicator()
@@ -137,6 +139,10 @@ final class SetupProgressList {
         case .creatingMoxUser: mark(current: .user)
         case .settingOwner: mark(current: .owner)
         case .readingKey: mark(current: .key)
+        case .settingUpPush: mark(current: .push)
+        case .pushSkipped(let reason):
+            skipped.insert(.push)
+            labels[.push]?.stringValue = "iPhone notifications are off: \(reason)"
         case .finished: mark(current: nil, allDone: true)
         }
     }
@@ -153,7 +159,9 @@ final class SetupProgressList {
             spinners[row]?.isHidden = !isCurrent
             let name: String
             let color: NSColor
-            if allDone || (current.map { row.rawValue < $0.rawValue } ?? false) {
+            if skipped.contains(row) {
+                (name, color) = ("exclamationmark.circle.fill", .systemOrange)
+            } else if allDone || (current.map { row.rawValue < $0.rawValue } ?? false) {
                 (name, color) = ("checkmark.circle.fill", .systemGreen)
             } else {
                 (name, color) = ("circle", .tertiaryLabelColor)

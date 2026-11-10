@@ -9,6 +9,7 @@ included:
 # Generated from backend/supabase/migrations/ (scripts/sync-migrations.py).
 excluded:
   - Sources/MoxCore/BundledMigrations.swift
+  - Sources/MoxCore/BundledFunctions.swift
 
 line_length:
   warning: 120

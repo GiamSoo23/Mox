@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// A step of setting up a project for Mox, for the wizard's progress list.
@@ -8,6 +9,9 @@ public enum ProvisioningStep: Equatable {
     case creatingMoxUser
     case settingOwner
     case readingKey
+    case settingUpPush
+    /// iPhone notifications couldn't be turned on. Mox works without them.
+    case pushSkipped(String)
     case finished
 }
 
@@ -102,6 +106,13 @@ public final class Provisioner {
             throw ProvisioningError.noPublishableKey
         }
 
+        progress(.settingUpPush)
+        do {
+            try await setUpPush(project)
+        } catch {
+            progress(.pushSkipped(error.localizedDescription))
+        }
+
         progress(.finished)
         return MoxSettings(projectURL: project.url, publishableKey: publishable, email: email, password: password)
     }
@@ -161,6 +172,29 @@ public final class Provisioner {
             """)
         let first = ((try? JSONSerialization.jsonObject(with: rows)) as? [[String: Any]])?.first
         return (first?["id"] as? String).flatMap(UUID.init(uuidString:))
+    }
+
+    /// Deploys the mox-push function with fresh keys and points the database
+    /// at it (#54). Optional: setup goes on without it.
+    private func setUpPush(_ project: Project) async throws {
+        let vapid = P256.Signing.PrivateKey()
+        let publicKey = PKCE.base64URL(vapid.publicKey.x963Representation)
+        let secret = Self.randomPassword()
+        try await api.deployFunction(project: project.id, slug: "mox-push", entrypoint: "index.ts",
+                                     files: BundledFunctions.moxPush)
+        try await api.setSecrets(project: project.id, [
+            "MOX_PUSH_SECRET": secret,
+            "MOX_VAPID_PUBLIC_KEY": publicKey,
+            "MOX_VAPID_PRIVATE_KEY": PKCE.base64URL(vapid.rawRepresentation)
+        ])
+        // New keys make old subscriptions useless, and phones pair again anyway.
+        let url = project.url.appendingPathComponent("functions/v1/mox-push").absoluteString
+        try await api.runSQL(project: project.id, """
+            insert into mox.push_config (id, function_url, secret) values (1, '\(url)', '\(secret)')
+            on conflict (id) do update set function_url = excluded.function_url, secret = excluded.secret;
+            update mox.meta set vapid_public_key = '\(publicKey)' where id = 1;
+            delete from mox.push_subscriptions;
+            """)
     }
 
     // MARK: Credentials
