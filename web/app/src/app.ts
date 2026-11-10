@@ -277,6 +277,19 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
+// The Send to Mox shortcut's setup code (#27): where mox-send lives and who to sign in as.
+onClick("copy-setup", async () => {
+  const settings = store.settings();
+  if (!settings) return;
+  await navigator.clipboard.writeText(JSON.stringify({
+    url: `${settings.projectUrl.replace(/\/$/, "")}/functions/v1/mox-send`,
+    key: settings.publishableKey,
+    email: settings.email,
+    password: settings.password,
+    device: store.deviceId(),
+  }));
+  message("Setup code copied. Now get the shortcut.");
+});
 onClick("refresh", async () => {
   message("Checking…");
   const fresh = await refresh(false);
