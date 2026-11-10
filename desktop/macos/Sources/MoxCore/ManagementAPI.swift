@@ -70,6 +70,39 @@ public final class ManagementAPI {
         _ = try await send("PATCH", "projects/\(ref)/postgrest", json: ["db_schema": schemas.joined(separator: ",")])
     }
 
+    // MARK: Edge Functions and secrets (#54)
+
+    /// Deploys (or replaces) an Edge Function from its source files. JWT
+    /// checking is off: the function checks its own shared secret.
+    public func deployFunction(project ref: String, slug: String, entrypoint: String,
+                               files: [(name: String, content: String)]) async throws {
+        let boundary = "mox-\(UUID().uuidString)"
+        var body = Data()
+        func part(_ headers: String, _ content: Data) {
+            body.append(Data("--\(boundary)\r\n\(headers)\r\n\r\n".utf8))
+            body.append(content)
+            body.append(Data("\r\n".utf8))
+        }
+        let metadata = try JSONSerialization.data(withJSONObject: [
+            "entrypoint_path": entrypoint, "name": slug, "verify_jwt": false
+        ])
+        part("Content-Disposition: form-data; name=\"metadata\"\r\nContent-Type: application/json", metadata)
+        for file in files {
+            part("Content-Disposition: form-data; name=\"file\"; filename=\"\(file.name)\"\r\n"
+                    + "Content-Type: application/typescript", Data(file.content.utf8))
+        }
+        body.append(Data("--\(boundary)--\r\n".utf8))
+        _ = try await send("POST", "projects/\(ref)/functions/deploy", query: "slug=\(slug)",
+                           body: body, contentType: "multipart/form-data; boundary=\(boundary)")
+    }
+
+    /// Sets Edge Function secrets, replacing ones with the same name.
+    public func setSecrets(project ref: String, _ secrets: [String: String]) async throws {
+        let list = secrets.keys.sorted().map { ["name": $0, "value": secrets[$0]!] }
+        _ = try await send("POST", "projects/\(ref)/secrets",
+                           body: try JSONSerialization.data(withJSONObject: list), contentType: "application/json")
+    }
+
     // MARK: Requests
 
     private func get(_ path: String, query: String? = nil) async throws -> Data {
@@ -78,15 +111,21 @@ public final class ManagementAPI {
 
     private func send(_ method: String, _ path: String, query: String? = nil,
                       json: [String: Any]? = nil) async throws -> Data {
+        let body = try json.map { try JSONSerialization.data(withJSONObject: $0) }
+        return try await send(method, path, query: query, body: body, contentType: "application/json")
+    }
+
+    private func send(_ method: String, _ path: String, query: String? = nil,
+                      body: Data?, contentType: String) async throws -> Data {
         var comps = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         comps.percentEncodedQuery = query
         var req = URLRequest(url: comps.url!)
         req.httpMethod = method
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let json {
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.httpBody = try JSONSerialization.data(withJSONObject: json)
+        if let body {
+            req.setValue(contentType, forHTTPHeaderField: "Content-Type")
+            req.httpBody = body
         }
         let (data, resp) = try await session.data(for: req)
         let status = (resp as? HTTPURLResponse)?.statusCode ?? 0
