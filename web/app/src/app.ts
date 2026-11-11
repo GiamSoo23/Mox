@@ -39,14 +39,18 @@ function render() {
     show("copy-code-step", location.hash.length > 1);
     return;
   }
-  if (!settings) {
+  // Opened with a pairing code in the address: pair with it, even if this
+  // iPhone was paired before. A new code replaces the old pairing, which
+  // stops working whenever Mox is set up again.
+  if (location.hash.length > 1) {
     show("pair");
-    // Opened with the pairing code in the address: pair without pasting.
-    if (location.hash.length > 1) void run(() => pair(location.href));
+    void run(() => pair(location.href));
     return;
   }
-  // Never keep the code (it holds the Mox password) in the address.
-  if (location.hash) history.replaceState(null, "", location.pathname);
+  if (!settings) {
+    show("pair");
+    return;
+  }
   client = new MoxClient(settings, store.deviceId());
   $("paired-with").textContent = settings.desktopName ?? "your computer";
   show("home");
@@ -62,6 +66,8 @@ async function pair(link: string) {
   message("Pairing…");
   await candidate.checkSchema();
   store.saveSettings(parsed);
+  // Never keep the code (it holds the Mox password) in the address.
+  history.replaceState(null, "", location.pathname);
   message(`Paired with ${parsed.desktopName ?? "your computer"}.`);
   render();
 }
@@ -296,6 +302,13 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
+// "Get the shortcut" opens the Shortcuts app and imports it from here. A plain
+// link would only download the file, because the server calls it a generic file.
+$<HTMLAnchorElement>("get-shortcut").href = "shortcuts://import-shortcut?" + new URLSearchParams({
+  url: new URL("Send-to-Mox.shortcut", location.href).href,
+  name: "Send to Mox",
+}).toString();
+
 // The Send to Mox shortcut's setup code (#27): where mox-send lives and who to sign in as.
 onClick("copy-setup", async () => {
   const settings = store.settings();
