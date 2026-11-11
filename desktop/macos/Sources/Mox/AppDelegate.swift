@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let deviceID = DeviceIdentity.id
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        quitOtherCopies()
         if AppMover.offerIfNeeded() { return }
         let bar = MenuBarController(supabase: nil, deviceID: deviceID, hotkeyHuman: config.hotkey.human)
         self.menuBar = bar
@@ -47,6 +48,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             bar.showStatus("Mox isn't set up yet. Choose Set Up Mox… to begin.")
             showSetup()
+        }
+    }
+
+    /// Only one Mox may run. An older copy left running after an update
+    /// keeps old settings that stop working, so the newest copy wins.
+    private func quitOtherCopies() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let me = NSRunningApplication.current.processIdentifier
+        for other in NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
+        where other.processIdentifier != me {
+            other.terminate()
         }
     }
 
