@@ -22,3 +22,16 @@ regexes = [
   '''EXAMPLEKEY''',
   '''\.example\.signature''',
 ]
+
+# The shortcut generator names Shortcuts' "Get Dictionary Value" action
+# (`getvalueforkey`), which the generic-api-key rule mistakes for a key.
+# Both the file and the pattern must match.
+[[allowlists]]
+description = "Shortcuts action name in the shortcut generator"
+condition = "AND"
+paths = [
+  '''^web/app/shortcut/make_shortcut\.py$''',
+]
+regexes = [
+  '''getvalueforkey''',
+]
