@@ -58,6 +58,30 @@ export async function uploadFrom(form: FormData): Promise<Upload> {
     throw new UserError("There's nothing to send.");
 }
 
+const EXTENSIONS: Record<string, string> = Object.fromEntries(
+    Object.entries(TYPES).filter(([ext]) => ext !== "jpeg").map(([ext, mime]) => [mime, ext]),
+);
+
+/**
+ * What to upload when the shortcut sends the file itself as the body (the
+ * simplest request a shortcut can build). Shortcuts gives the name without
+ * its extension, so it's added back from the type.
+ */
+export function uploadFromBody(bytes: Uint8Array, name: string | null, contentType: string | null): Upload {
+    if (bytes.length === 0) throw new UserError("There's nothing to send.");
+    if (bytes.length > MAX_FILE_BYTES) throw new UserError("That file is over 50 MB, the most Mox sends.");
+    const mime = (contentType ?? "").split(";")[0].trim().toLowerCase() || "application/octet-stream";
+    let fileName = cleanName(name);
+    const extension = EXTENSIONS[mime];
+    if (extension && !fileName.toLowerCase().endsWith(`.${extension}`) && !fileName.includes(".")) {
+        fileName = cleanName(`${fileName}.${extension}`);
+    }
+    if (mime.startsWith("text/plain") && name === null) {
+        return { bytes, name: "Text.txt", mime: "text/plain", kind: "text" };
+    }
+    return { bytes, name: fileName, mime: mimeFor(fileName, mime), kind: "file" };
+}
+
 /** An error whose message is meant for the person using the shortcut. */
 export class UserError extends Error {}
 

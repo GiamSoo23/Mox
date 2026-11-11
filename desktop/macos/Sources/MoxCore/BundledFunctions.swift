@@ -93,7 +93,7 @@ export function sameSecret(given: string | null, expected: string | undefined): 
 // here, in the user's own project. This function signs in as the Mox user
 // with the credentials the request carries and uses that session, so the
 // same row level security applies as for every Mox app.
-import { credentialsFrom, type Upload, uploadFrom, UserError } from "./send.ts";
+import { credentialsFrom, type Upload, uploadFrom, uploadFromBody, UserError } from "./send.ts";
 
 const PROJECT = Deno.env.get("SUPABASE_URL") ?? "";
 
@@ -101,7 +101,10 @@ Deno.serve(async (request) => {
     if (request.method !== "POST") return reply("Use POST.", 405);
     try {
         const { key, email, password, device } = credentialsFrom(request.headers);
-        const upload = await uploadFrom(await request.formData());
+        const type = request.headers.get("content-type") ?? "";
+        const upload = type.startsWith("multipart/form-data")
+            ? await uploadFrom(await request.formData())
+            : uploadFromBody(new Uint8Array(await request.arrayBuffer()), request.headers.get("x-mox-name"), type);
         const token = await signIn(key, email, password);
         await send(upload, key, token, device);
         return reply(upload.kind === "text" ? "Text sent to Mox." : `Sent ${upload.name} to Mox.`, 200);
@@ -218,6 +221,30 @@ export async function uploadFrom(form: FormData): Promise<Upload> {
         return { bytes, name: "Text.txt", mime: "text/plain", kind: "text" };
     }
     throw new UserError("There's nothing to send.");
+}
+
+const EXTENSIONS: Record<string, string> = Object.fromEntries(
+    Object.entries(TYPES).filter(([ext]) => ext !== "jpeg").map(([ext, mime]) => [mime, ext]),
+);
+
+/**
+ * What to upload when the shortcut sends the file itself as the body (the
+ * simplest request a shortcut can build). Shortcuts gives the name without
+ * its extension, so it's added back from the type.
+ */
+export function uploadFromBody(bytes: Uint8Array, name: string | null, contentType: string | null): Upload {
+    if (bytes.length === 0) throw new UserError("There's nothing to send.");
+    if (bytes.length > MAX_FILE_BYTES) throw new UserError("That file is over 50 MB, the most Mox sends.");
+    const mime = (contentType ?? "").split(";")[0].trim().toLowerCase() || "application/octet-stream";
+    let fileName = cleanName(name);
+    const extension = EXTENSIONS[mime];
+    if (extension && !fileName.toLowerCase().endsWith(`.${extension}`) && !fileName.includes(".")) {
+        fileName = cleanName(`${fileName}.${extension}`);
+    }
+    if (mime.startsWith("text/plain") && name === null) {
+        return { bytes, name: "Text.txt", mime: "text/plain", kind: "text" };
+    }
+    return { bytes, name: fileName, mime: mimeFor(fileName, mime), kind: "file" };
 }
 
 /** An error whose message is meant for the person using the shortcut. */
