@@ -3,17 +3,14 @@
 // here, in the user's own project. This function signs in as the Mox user
 // with the credentials the request carries and uses that session, so the
 // same row level security applies as for every Mox app.
-import { type Upload, uploadFrom, UserError } from "./send.ts";
+import { credentialsFrom, type Upload, uploadFrom, UserError } from "./send.ts";
 
 const PROJECT = Deno.env.get("SUPABASE_URL") ?? "";
 
 Deno.serve(async (request) => {
     if (request.method !== "POST") return reply("Use POST.", 405);
-    const key = request.headers.get("x-mox-key") ?? "";
-    const email = request.headers.get("x-mox-email") ?? "";
-    const password = request.headers.get("x-mox-password") ?? "";
-    const device = request.headers.get("x-mox-device") ?? "";
     try {
+        const { key, email, password, device } = credentialsFrom(request.headers);
         const upload = await uploadFrom(await request.formData());
         const token = await signIn(key, email, password);
         await send(upload, key, token, device);
