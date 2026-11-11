@@ -1,7 +1,11 @@
 textarea { width: 100%; min-height: 5rem; box-sizing: border-box; padding: 0.75rem; border-radius: 12px;
   border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
 .file-button input { display: none; }
-#preview { display: block; max-width: 100%; border-radius: 12px; margin-top: 0.75rem; }
 #latest-detail { white-space: pre-wrap; word-break: break-word; }
 #message.error { color: var(--accent); }
 .link { background: none; border: none; color: var(--accent); padding: 0; font: inherit; text-decoration: underline; }
+.setup-steps { padding-left: 1.2rem; margin: 0; }
+.setup-steps > li { margin-bottom: 1.25rem; }
+.setup-steps h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.done { color: var(--muted); }
+.status { margin-top: 0.5rem; }

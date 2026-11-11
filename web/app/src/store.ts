@@ -39,6 +39,9 @@ export const store = {
   /** The VAPID key the current push subscription was made with. */
   vapidKey: () => read("mox.vapidKey"),
   setVapidKey: (value: string) => write("mox.vapidKey", value),
+  /** Whether the person said the Send to Mox shortcut is installed. */
+  shortcutAdded: () => read("mox.shortcutAdded") === "yes",
+  setShortcutAdded: (added: boolean) => write("mox.shortcutAdded", added ? "yes" : null),
   lastHandled: () => read("mox.lastHandled"),
   setLastHandled: (value: string) => write("mox.lastHandled", value),
 };

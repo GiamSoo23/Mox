@@ -14,8 +14,9 @@ const TAP_URL = new URL("last-tap", location.href).href;
 let client: MoxClient | null = null;
 let latest: { item: Item; blob?: Blob; text?: string } | null = null;
 
+/** Short news for the person: next to the latest item once paired, at the top before. */
 function message(text: string, isError = false) {
-  const box = $("message");
+  const box = $("home").hidden ? $("message") : $("status");
   box.textContent = text;
   box.classList.toggle("error", isError);
   box.hidden = text === "";
@@ -74,16 +75,31 @@ async function pair(link: string) {
 
 // ---- Notifications ---------------------------------------------------------
 
+let notificationsOn = false;
+
 async function prepareNotifications() {
   const supported = "serviceWorker" in navigator && "PushManager" in window;
-  show("notify-card", supported);
-  if (!supported) return;
-  const registration = await navigator.serviceWorker.register("sw.js", { updateViaCache: "none" });
-  await navigator.serviceWorker.ready;
-  const on = Notification.permission === "granted" && (await registration.pushManager.getSubscription()) !== null;
-  show("notify-off", !on);
-  show("notify-on", on);
-  if (on) await subscribe(registration); // Keeps the project's copy current.
+  if (supported) {
+    const registration = await navigator.serviceWorker.register("sw.js", { updateViaCache: "none" });
+    await navigator.serviceWorker.ready;
+    notificationsOn = Notification.permission === "granted" &&
+      (await registration.pushManager.getSubscription()) !== null;
+    if (notificationsOn) await subscribe(registration); // Keeps the project's copy current.
+  }
+  updateSetupCard(!supported);
+}
+
+/**
+ * The setup steps show until both are done, then get out of the way.
+ * "Setup steps" at the bottom brings them back.
+ */
+function updateSetupCard(notificationsUnsupported = false, forceOpen = false) {
+  const notifyDone = notificationsOn || notificationsUnsupported;
+  show("enable-notifications", !notifyDone);
+  ($("step-notify").querySelector(".done") as HTMLElement).hidden = !notificationsOn;
+  show("step-notify", !notificationsUnsupported);
+  show("shortcut-done", !store.shortcutAdded());
+  show("setup-card", forceOpen || !notifyDone || !store.shortcutAdded());
 }
 
 async function subscribe(registration: ServiceWorkerRegistration) {
@@ -112,8 +128,8 @@ async function enableNotifications() {
     throw new Error("Notifications are off. Turn them on in Settings → Notifications → Mox.");
   }
   await subscribe(await navigator.serviceWorker.ready);
-  show("notify-off", false);
-  show("notify-on");
+  notificationsOn = true;
+  updateSetupCard();
   message("Notifications are on.");
 }
 
@@ -127,7 +143,7 @@ async function refresh(fromTap: boolean): Promise<boolean> {
     latest = null;
     $("latest-title").textContent = "Nothing sent yet";
     $("latest-detail").textContent = "Send something from your computer.";
-    for (const id of ["copy-text", "save-file", "preview"]) show(id, false);
+    for (const id of ["copy-text", "save-file"]) show(id, false);
     return false;
   }
   const fresh = isNew(item, store.deviceId(), store.lastHandled());
@@ -140,10 +156,8 @@ async function refresh(fromTap: boolean): Promise<boolean> {
     : `${humanSize(item.size_bytes)} · from ${sourceName(item.source_platform)}${fresh ? " · new" : ""}`;
   show("copy-text", item.kind === "text" || isImage(item));
   show("save-file", item.kind !== "text");
-  show("preview", false);
   if (fresh) store.setLastHandled(item.uploaded_at);
   if (item.kind === "text") $("latest-detail").textContent = await textOf();
-  if (isImage(item)) showPreview(await blobOf());
   // After a tap, checkTap has already started the copy.
   if (fresh && !fromTap) await copyLatest(true);
   return fresh;
@@ -163,11 +177,6 @@ async function textOf(): Promise<string> {
   return latest?.text ?? "";
 }
 
-function showPreview(blob: Blob) {
-  const preview = $<HTMLImageElement>("preview");
-  preview.src = URL.createObjectURL(blob);
-  show("preview");
-}
 
 /** iPhone's clipboard takes images as PNG, so photos (JPEG, HEIC) are converted. */
 async function pngOf(blob: Blob): Promise<Blob> {
@@ -221,7 +230,6 @@ async function saveFile() {
   const blob = await blobOf();
   const { item } = latest;
   const file = new File([blob], item.original_name, { type: item.mime_type ?? blob.type });
-  if (isImage(item)) showPreview(blob);
   message("");
   if (navigator.canShare?.({ files: [file] })) {
     // The share sheet has Save Image, Save to Files, and every app.
@@ -302,6 +310,11 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
+onClick("shortcut-done", async () => {
+  store.setShortcutAdded(true);
+  updateSetupCard();
+});
+onClick("show-setup", async () => updateSetupCard(false, true));
 // The Send to Mox shortcut's setup code (#27): where mox-send lives and who to sign in as.
 onClick("copy-setup", async () => {
   const settings = store.settings();
