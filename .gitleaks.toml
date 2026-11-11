@@ -32,6 +32,7 @@ condition = "AND"
 paths = [
   '''^web/app/shortcut/make_shortcut\.py$''',
 ]
+regexTarget = "line"
 regexes = [
   '''getvalueforkey''',
 ]
