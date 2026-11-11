@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { cleanName, MAX_TEXT_BYTES, mimeFor, uploadFrom, UserError } from "./send.ts";
+import { cleanName, credentialsFrom, MAX_TEXT_BYTES, mimeFor, uploadFrom, UserError } from "./send.ts";
 
 Deno.test("the type comes from iPhone, or else from the extension", () => {
     assertEquals(mimeFor("IMG_0001.HEIC", ""), "image/heic");
@@ -40,4 +40,22 @@ Deno.test("empty or oversized input is refused with a clear message", async () =
     const long = new FormData();
     long.set("text", "a".repeat(MAX_TEXT_BYTES + 1));
     await assertRejects(() => uploadFrom(long), UserError);
+});
+
+Deno.test("the setup code arrives as one JSON header", () => {
+    const headers = new Headers({
+        "x-mox-setup": JSON.stringify({ url: "u", key: "k", email: "e", password: "p", device: "d" }),
+    });
+    assertEquals(credentialsFrom(headers), { key: "k", email: "e", password: "p", device: "d" });
+});
+
+Deno.test("separate headers still work, and a broken setup code is explained", () => {
+    const headers = new Headers({ "x-mox-key": "k", "x-mox-email": "e", "x-mox-password": "p", "x-mox-device": "d" });
+    assertEquals(credentialsFrom(headers).email, "e");
+    try {
+        credentialsFrom(new Headers({ "x-mox-setup": "{not json" }));
+        throw new Error("should have thrown");
+    } catch (error) {
+        assertEquals(error instanceof UserError, true);
+    }
 });

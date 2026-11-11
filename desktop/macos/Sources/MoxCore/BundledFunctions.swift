@@ -93,17 +93,14 @@ export function sameSecret(given: string | null, expected: string | undefined): 
 // here, in the user's own project. This function signs in as the Mox user
 // with the credentials the request carries and uses that session, so the
 // same row level security applies as for every Mox app.
-import { type Upload, uploadFrom, UserError } from "./send.ts";
+import { credentialsFrom, type Upload, uploadFrom, UserError } from "./send.ts";
 
 const PROJECT = Deno.env.get("SUPABASE_URL") ?? "";
 
 Deno.serve(async (request) => {
     if (request.method !== "POST") return reply("Use POST.", 405);
-    const key = request.headers.get("x-mox-key") ?? "";
-    const email = request.headers.get("x-mox-email") ?? "";
-    const password = request.headers.get("x-mox-password") ?? "";
-    const device = request.headers.get("x-mox-device") ?? "";
     try {
+        const { key, email, password, device } = credentialsFrom(request.headers);
         const upload = await uploadFrom(await request.formData());
         const token = await signIn(key, email, password);
         await send(upload, key, token, device);
@@ -225,6 +222,41 @@ export async function uploadFrom(form: FormData): Promise<Upload> {
 
 /** An error whose message is meant for the person using the shortcut. */
 export class UserError extends Error {}
+
+export interface Credentials {
+    key: string;
+    email: string;
+    password: string;
+    device: string;
+}
+
+/**
+ * The Mox user's credentials from the request. The shortcut sends the setup
+ * code as one header (`x-mox-setup`, a JSON object), because that's the least
+ * it can build by hand. Four separate headers still work.
+ */
+export function credentialsFrom(headers: Headers): Credentials {
+    const setup = headers.get("x-mox-setup");
+    if (setup) {
+        try {
+            const parsed = JSON.parse(setup);
+            return {
+                key: String(parsed.key ?? ""),
+                email: String(parsed.email ?? ""),
+                password: String(parsed.password ?? ""),
+                device: String(parsed.device ?? ""),
+            };
+        } catch {
+            throw new UserError("The shortcut's setup code isn't valid. Copy a new one in Mox for iPhone.");
+        }
+    }
+    return {
+        key: headers.get("x-mox-key") ?? "",
+        email: headers.get("x-mox-email") ?? "",
+        password: headers.get("x-mox-password") ?? "",
+        device: headers.get("x-mox-device") ?? "",
+    };
+}
 """#),
         ]),
     ]
