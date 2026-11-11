@@ -138,8 +138,8 @@ async function refresh(fromTap: boolean): Promise<boolean> {
   if (fresh) store.setLastHandled(item.uploaded_at);
   if (item.kind === "text") $("latest-detail").textContent = await textOf();
   if (isImage(item)) showPreview(await blobOf());
-  // Right after a tap, iOS lets the page copy without another tap.
-  if (fromTap || fresh) await copyLatest(true);
+  // After a tap, checkTap has already started the copy.
+  if (fresh && !fromTap) await copyLatest(true);
   return fresh;
 }
 
@@ -230,12 +230,31 @@ async function saveFile() {
   }
 }
 
-/** The service worker saves the tapped notification for the page. */
+/**
+ * The service worker saves the tapped notification for the page. iPhone
+ * allows copying only for a moment after the tap, so the copy starts at
+ * once, with the content still downloading, instead of after the download.
+ */
 async function checkTap() {
   const cache = await caches.open("mox");
-  if (!(await cache.match(TAP_URL))) return;
+  const saved = await cache.match(TAP_URL);
+  if (!saved) return;
   await cache.delete(TAP_URL);
-  await refresh(true);
+  const tap = await saved.json().catch(() => ({})) as { kind?: string };
+  const loaded = refresh(true);
+  const type = tap.kind === "text" ? "text/plain" : tap.kind === "file" ? "image/png" : null;
+  if (type) {
+    const content = loaded.then(async () => {
+      if (!latest) throw new Error("Nothing to copy.");
+      if (type === "text/plain") return new Blob([await textOf()], { type });
+      if (!isImage(latest.item)) throw new Error("Not an image.");
+      return pngOf(await blobOf());
+    });
+    navigator.clipboard.write([new ClipboardItem({ [type]: content })])
+      .then(() => message(type === "text/plain" ? "Copied. Paste it anywhere." : "Image copied. Paste it in any chat."))
+      .catch(() => message(type === "text/plain" ? "Tap Copy to put it on the clipboard." : ""));
+  }
+  await loaded;
 }
 
 
