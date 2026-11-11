@@ -152,6 +152,29 @@ shortcut, because iOS can't share files *into* a web app.
 whether tapping the notification can lead straight to the saved file. If it
 falls short, B is the fallback, then C.
 
+### 4.2 What shipped, and a possible native app (Nov 2026)
+
+**Shipped:** option A for receiving (Mox for iPhone, a home screen web app
+with Web Push from the user's own project, #54), and a **Send to Mox**
+shortcut for sending, through the `mox-send` Edge Function (#27). A spike on
+the author's iPhone showed pushes arrive in about a second, even locked, and
+that the page can copy right after the notification is tapped.
+
+**Limits that only a native app removes:** shortcuts appear in the Share
+menu's action list, not in the row of app icons, and installing anything
+native for other people needs the paid Apple Developer account ($99/year).
+
+**If a native app happens** (deferred, author's call): it can't receive Web
+Push, and pushing through Apple's service needs the developer's key, which
+can't be handed to every user. The option that keeps "Mox has no servers"
+as close as possible is a **content-free relay**: a small service run by
+the maintainer that forwards only an empty "something new" ping to a device
+token. Files and file names never pass through it, so the maintainer never
+handles user content; the app downloads from the user's own project as
+today. Even so, it's a server to run and a dependency for every iPhone, so
+it isn't built until the account is bought. The same account would also
+notarize the Mac app, removing the "Open Anyway" step.
+
 ## 5. Decision: a native app on each desktop OS, not one cross-platform app
 
 | Option | For | Against |

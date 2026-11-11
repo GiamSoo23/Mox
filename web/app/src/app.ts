@@ -302,13 +302,6 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
-// "Get the shortcut" opens the Shortcuts app and imports it from here. A plain
-// link would only download the file, because the server calls it a generic file.
-$<HTMLAnchorElement>("get-shortcut").href = "shortcuts://import-shortcut?" + new URLSearchParams({
-  url: new URL("Send-to-Mox.shortcut", location.href).href,
-  name: "Send to Mox",
-}).toString();
-
 // The Send to Mox shortcut's setup code (#27): where mox-send lives and who to sign in as.
 onClick("copy-setup", async () => {
   const settings = store.settings();
