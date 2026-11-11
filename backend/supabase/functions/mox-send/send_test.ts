@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1";
-import { cleanName, credentialsFrom, MAX_TEXT_BYTES, mimeFor, uploadFrom, UserError } from "./send.ts";
+import { cleanName, credentialsFrom, MAX_TEXT_BYTES, mimeFor, uploadFrom, uploadFromBody, UserError } from "./send.ts";
 
 Deno.test("the type comes from iPhone, or else from the extension", () => {
     assertEquals(mimeFor("IMG_0001.HEIC", ""), "image/heic");
@@ -54,6 +54,22 @@ Deno.test("separate headers still work, and a broken setup code is explained", (
     assertEquals(credentialsFrom(headers).email, "e");
     try {
         credentialsFrom(new Headers({ "x-mox-setup": "{not json" }));
+        throw new Error("should have thrown");
+    } catch (error) {
+        assertEquals(error instanceof UserError, true);
+    }
+});
+
+Deno.test("a raw body gets its extension back from the type", () => {
+    const photo = uploadFromBody(new Uint8Array([1, 2]), "IMG_0001", "image/jpeg");
+    assertEquals([photo.kind, photo.name, photo.mime], ["file", "IMG_0001.jpg", "image/jpeg"]);
+    assertEquals(uploadFromBody(new Uint8Array([1]), "clip.mov", "video/quicktime").name, "clip.mov");
+    assertEquals(uploadFromBody(new Uint8Array([1]), "IMG_0002", "image/heic").name, "IMG_0002.heic");
+});
+
+Deno.test("an empty raw body is refused", () => {
+    try {
+        uploadFromBody(new Uint8Array(), "x", "image/jpeg");
         throw new Error("should have thrown");
     } catch (error) {
         assertEquals(error instanceof UserError, true);
