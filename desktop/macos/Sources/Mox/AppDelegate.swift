@@ -51,17 +51,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Only one Mox may run. An older copy left running after an update
-    /// keeps old settings that stop working, so the newest copy wins.
-    private func quitOtherCopies() {
-        guard let bundleID = Bundle.main.bundleIdentifier else { return }
-        let me = NSRunningApplication.current.processIdentifier
-        for other in NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-        where other.processIdentifier != me {
-            other.terminate()
-        }
-    }
-
     /// Opening Mox while it's already running, including from the Dock.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         showHome()
