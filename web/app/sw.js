@@ -16,7 +16,7 @@ self.addEventListener("push", (event) => {
   event.waitUntil(self.registration.showNotification(data.title || "Mox", {
     body: data.body || "",
     tag: "mox",
-    data: { uploadedAt: data.uploadedAt || "" },
+    data: { uploadedAt: data.uploadedAt || "", kind: data.kind || "" },
   }));
 });
 
