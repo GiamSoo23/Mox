@@ -5,4 +5,13 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Mox.Core</RootNamespace>
   </PropertyGroup>
+  <!-- Setup applies these to the user's project (#33). Taken straight from
+       backend/, so the Windows app can't carry a stale copy. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\..\..\backend\supabase\migrations\*.sql"
+                      LogicalName="migrations/%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\..\..\backend\supabase\functions\**\*.ts"
+                      Exclude="..\..\..\..\backend\supabase\functions\**\*_test.ts"
+                      LogicalName="functions/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
 </Project>

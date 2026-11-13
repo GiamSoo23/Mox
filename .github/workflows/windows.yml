@@ -7,12 +7,16 @@ on:
     paths:
       - "desktop/windows/**"
       - "shared/fixtures/**"
+      - "backend/supabase/migrations/**"
+      - "backend/supabase/functions/**"
       - ".github/workflows/windows.yml"
   push:
     branches: [main]
     paths:
       - "desktop/windows/**"
       - "shared/fixtures/**"
+      - "backend/supabase/migrations/**"
+      - "backend/supabase/functions/**"
       - ".github/workflows/windows.yml"
 
 concurrency:
