@@ -21,7 +21,7 @@
 </head>
 <body>
   <main>
-    <header><h1>Mox</h1></header>
+    <header class="app-header"><img src="icon-180.png" alt="" width="36" height="36"><h1>Mox</h1></header>
 
     <p id="message" class="card notice" hidden></p>
 
@@ -91,23 +91,28 @@
 
     <section id="home" hidden>
       <div class="card">
-        <h2 id="latest-title">Latest</h2>
-        <p id="latest-detail" class="muted"></p>
+        <div class="card-head">
+          <h2 id="latest-title">Latest</h2>
+          <a id="refresh" class="icon-link" href="#" aria-label="Check again">↻</a>
+        </div>
+        <p id="latest-detail" class="muted clamp"></p>
         <p id="status" class="status small" hidden></p>
-        <a id="copy-text" class="button" href="#" hidden>Copy</a>
-        <a id="save-file" class="button" href="#" hidden>Save or share…</a>
-        <a id="refresh" class="button secondary" href="#">Check again</a>
+        <div class="row">
+          <a id="copy-text" class="button" href="#" hidden>Copy</a>
+          <a id="save-file" class="button secondary" href="#" hidden>Save or share…</a>
+        </div>
       </div>
 
       <div class="card">
         <h2>Send to your computer</h2>
-        <label class="button file-button">Send a photo or file<input id="file-to-send" type="file"></label>
-        <textarea id="text-to-send" placeholder="Or type or paste text" aria-label="Text to send"></textarea>
-        <a id="send-text" class="button secondary" href="#">Send text</a>
+        <div class="row">
+          <label class="button file-button">Photo or file<input id="file-to-send" type="file"></label>
+          <a id="send-clipboard" class="button secondary" href="#">What I copied</a>
+        </div>
       </div>
 
-      <p class="center small muted">Paired with <span id="paired-with"></span></p>
-      <p class="center small"><a id="show-setup" href="#">Setup steps</a> · <a id="unpair" href="#">Unpair this iPhone</a></p>
+      <p class="center small muted footer-line">Paired with <span id="paired-with"></span> ·
+        <a id="show-setup" href="#">Setup</a> · <a id="unpair" href="#">Unpair</a></p>
     </section>
   </main>
 </body>
