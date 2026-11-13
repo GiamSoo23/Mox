@@ -54,39 +54,42 @@
       <a id="pair-typed" class="button secondary" href="#">Pair</a>
     </section>
 
-    <section id="home" hidden>
-      <div class="card summary">
-        <p class="label">Paired with</p>
-        <p id="paired-with" class="big"></p>
-      </div>
-
-      <div id="setup-card" class="card" hidden>
-        <h2>Finish setting up</h2>
+    <section id="onboard" hidden>
+      <div class="card">
+        <p class="label">Paired with <span id="onboard-paired-with"></span></p>
+        <h2>Three steps and you're ready</h2>
         <ol class="setup-steps">
           <li id="step-notify">
-            <h3>Get notified</h3>
-            <p class="small">Know when your computer sends something, even with Mox closed.</p>
+            <h3>Turn on notifications</h3>
+            <p class="small">So you know when your computer sends something, even with Mox closed.</p>
             <a id="enable-notifications" class="button" href="#">Turn on notifications</a>
-            <p class="done small" hidden>✓ Notifications are on</p>
+            <p class="done small" hidden>✓ Done</p>
           </li>
-          <li id="step-shortcut">
-            <h3>Send from Photos and Files</h3>
-            <p class="small">Add the <strong>Send to Mox</strong> shortcut. Then tap <strong>Share</strong> in Photos
-              or Files and choose Send to Mox at the bottom of the list.</p>
+          <li id="step-shortcut" class="locked">
+            <h3>Add the Send to Mox shortcut</h3>
+            <p class="small">It lets you send from Photos and Files with <strong>Share</strong>. Tap
+              <strong>Add Shortcut</strong>, then come back here.</p>
+            <a id="get-shortcut" class="button" href="https://www.icloud.com/shortcuts/25d13190b18a444a88957012faf8abbe">Get the shortcut</a>
+            <a id="shortcut-added" class="button secondary" href="#">I've added it</a>
+            <p class="done small" hidden>✓ Done</p>
+          </li>
+          <li id="step-code" class="locked">
+            <h3>Connect the shortcut</h3>
             <ol class="small">
-              <li>Get the shortcut and tap <strong>Add Shortcut</strong>.</li>
-              <li>Copy the setup code.</li>
-              <li>In Shortcuts, tap <strong>…</strong> on Send to Mox and paste the code into the empty
+              <li>Tap <strong>Copy setup code</strong>.</li>
+              <li>Open <strong>Shortcuts</strong>, tap <strong>…</strong> on Send to Mox, and paste into the empty
                 <strong>Text</strong> box at the top.</li>
+              <li>Tap <strong>▶</strong> to run it. It should say <strong>Mox is ready</strong>.</li>
             </ol>
-            <a class="button secondary" href="https://www.icloud.com/shortcuts/25d13190b18a444a88957012faf8abbe">Get the shortcut</a>
-            <a id="copy-setup" class="button secondary" href="#">Copy setup code</a>
-            <a id="shortcut-done" class="button" href="#">I've added it</a>
-            <p class="muted small">The code contains your Mox password: don't share the shortcut after pasting it.</p>
+            <a id="copy-setup" class="button" href="#">Copy setup code</a>
+            <a id="code-done" class="button secondary" href="#">It says Mox is ready</a>
+            <p class="muted small">The code holds your Mox password: don't share the shortcut after pasting it.</p>
           </li>
         </ol>
       </div>
+    </section>
 
+    <section id="home" hidden>
       <div class="card">
         <h2 id="latest-title">Latest</h2>
         <p id="latest-detail" class="muted"></p>
@@ -103,6 +106,7 @@
         <a id="send-text" class="button secondary" href="#">Send text</a>
       </div>
 
+      <p class="center small muted">Paired with <span id="paired-with"></span></p>
       <p class="center small"><a id="show-setup" href="#">Setup steps</a> · <a id="unpair" href="#">Unpair this iPhone</a></p>
     </section>
   </main>

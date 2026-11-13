@@ -75,3 +75,8 @@ Deno.test("an empty raw body is refused", () => {
         assertEquals(error instanceof UserError, true);
     }
 });
+
+Deno.test("text shared as a file becomes a text", () => {
+    const upload = uploadFromBody(new TextEncoder().encode("Vote here"), "File", "text/plain");
+    assertEquals([upload.kind, upload.name], ["text", "Text.txt"]);
+});
