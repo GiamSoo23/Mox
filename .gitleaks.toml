@@ -15,6 +15,7 @@ paths = [
   '''^shared/fixtures/''',
   '''^desktop/macos/Tests/''',
   '''^mobile/android/app/src/test/''',
+  '''^desktop/windows/tests/''',
   '''^web/.*\.test\.js$''',
 ]
 regexes = [

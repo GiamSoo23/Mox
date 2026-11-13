@@ -28,3 +28,8 @@ captures/
 # Mox for iPhone build output and dependencies
 web/app/app.js
 node_modules/
+
+# .NET
+bin/
+obj/
+*.user

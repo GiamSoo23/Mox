@@ -1,0 +1,41 @@
+# Builds the Windows app and runs its tests against the shared fixtures, on
+# a real Windows runner.
+name: Windows
+
+on:
+  pull_request:
+    paths:
+      - "desktop/windows/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/windows.yml"
+  push:
+    branches: [main]
+    paths:
+      - "desktop/windows/**"
+      - "shared/fixtures/**"
+      - ".github/workflows/windows.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop/windows
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - name: Test Mox.Core against the shared fixtures
+        run: dotnet test tests/Mox.Core.Tests --nologo
+      - name: Build the tray app
+        run: dotnet build src/Mox.Tray -c Release --nologo

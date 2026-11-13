@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Everything that doesn't need a screen: the protocol, settings, the
+       Supabase client. Plain .NET, so its tests run anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Mox.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
