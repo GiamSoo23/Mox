@@ -9,7 +9,7 @@ public class SetupTests
     {
         var repo = Directory.GetParent(Fixtures.Root)!.Parent!.FullName;
         var onDisk = Directory.GetFiles(Path.Combine(repo, "backend", "supabase", "migrations"), "*.sql")
-            .Select(Path.GetFileNameWithoutExtension).Order(StringComparer.Ordinal).ToList();
+            .Select(f => Path.GetFileNameWithoutExtension(f)!).Order(StringComparer.Ordinal).ToList();
         Assert.Equal(onDisk, BundledFiles.Migrations.Select(m => $"{m.Version}_{m.Name}").ToList());
         Assert.All(BundledFiles.Migrations, m => Assert.False(string.IsNullOrWhiteSpace(m.Sql)));
     }
