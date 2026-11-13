@@ -76,7 +76,9 @@ export function uploadFromBody(bytes: Uint8Array, name: string | null, contentTy
     if (extension && !fileName.toLowerCase().endsWith(`.${extension}`) && !fileName.includes(".")) {
         fileName = cleanName(`${fileName}.${extension}`);
     }
-    if (mime.startsWith("text/plain") && name === null) {
+    // Text shared from another app (WhatsApp, Notes…) arrives as a small
+    // plain-text file. It goes on the other device's clipboard, not in a folder.
+    if (mime === "text/plain" && bytes.length <= MAX_TEXT_BYTES) {
         return { bytes, name: "Text.txt", mime: "text/plain", kind: "text" };
     }
     return { bytes, name: fileName, mime: mimeFor(fileName, mime), kind: "file" };

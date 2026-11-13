@@ -33,7 +33,7 @@ async function run(task: () => Promise<unknown>) {
 // ---- Screens ---------------------------------------------------------------
 
 function render() {
-  for (const id of ["install", "pair", "home"]) show(id, false);
+  for (const id of ["install", "pair", "onboard", "home"]) show(id, false);
   const settings = store.settings();
   if (!standalone) {
     show("install");
@@ -53,8 +53,12 @@ function render() {
     return;
   }
   client = new MoxClient(settings, store.deviceId());
-  $("paired-with").textContent = settings.desktopName ?? "your computer";
-  show("home");
+  const name = settings.desktopName ?? "your computer";
+  $("paired-with").textContent = name;
+  $("onboard-paired-with").textContent = name;
+  message("");
+  // Setup comes first: Mox opens only once its three steps are done.
+  show(store.setupDone() ? "home" : "onboard");
   void run(prepareNotifications);
   void run(() => refresh(false));
 }
@@ -69,7 +73,6 @@ async function pair(link: string) {
   store.saveSettings(parsed);
   // Never keep the code (it holds the Mox password) in the address.
   history.replaceState(null, "", location.pathname);
-  message(`Paired with ${parsed.desktopName ?? "your computer"}.`);
   render();
 }
 
@@ -89,17 +92,19 @@ async function prepareNotifications() {
   updateSetupCard(!supported);
 }
 
-/**
- * The setup steps show until both are done, then get out of the way.
- * "Setup steps" at the bottom brings them back.
- */
-function updateSetupCard(notificationsUnsupported = false, forceOpen = false) {
+/** The three setup steps unlock one after another. */
+function updateSetupCard(notificationsUnsupported = false) {
   const notifyDone = notificationsOn || notificationsUnsupported;
-  show("enable-notifications", !notifyDone);
-  ($("step-notify").querySelector(".done") as HTMLElement).hidden = !notificationsOn;
-  show("step-notify", !notificationsUnsupported);
-  show("shortcut-done", !store.shortcutAdded());
-  show("setup-card", forceOpen || !notifyDone || !store.shortcutAdded());
+  const shortcutDone = store.shortcutAdded();
+  const step = (id: string, done: boolean, unlocked: boolean) => {
+    const item = $(id);
+    item.classList.toggle("locked", !unlocked);
+    for (const button of item.querySelectorAll<HTMLElement>(".button")) button.hidden = done;
+    (item.querySelector(".done") as HTMLElement | null)?.toggleAttribute("hidden", !done);
+  };
+  step("step-notify", notifyDone, true);
+  step("step-shortcut", shortcutDone, notifyDone);
+  $("step-code").classList.toggle("locked", !(notifyDone && shortcutDone));
 }
 
 async function subscribe(registration: ServiceWorkerRegistration) {
@@ -155,6 +160,7 @@ async function refresh(fromTap: boolean): Promise<boolean> {
     ? (fresh ? "New" : "")
     : `${humanSize(item.size_bytes)} · from ${sourceName(item.source_platform)}${fresh ? " · new" : ""}`;
   show("copy-text", item.kind === "text" || isImage(item));
+  $("save-file").textContent = isImage(item) ? "Save or share…" : "Save, copy or share…";
   show("save-file", item.kind !== "text");
   if (fresh) store.setLastHandled(item.uploaded_at);
   if (item.kind === "text") $("latest-detail").textContent = await textOf();
@@ -310,11 +316,19 @@ onClick("copy-code", async () => {
 onClick("paste-code", async () => pair(await navigator.clipboard.readText()));
 onClick("pair-typed", () => pair($<HTMLTextAreaElement>("typed-code").value));
 onClick("enable-notifications", enableNotifications);
-onClick("shortcut-done", async () => {
+onClick("shortcut-added", async () => {
   store.setShortcutAdded(true);
   updateSetupCard();
 });
-onClick("show-setup", async () => updateSetupCard(false, true));
+onClick("code-done", async () => {
+  store.setSetupDone(true);
+  render();
+  message("You're ready. Share from Photos or Files with Send to Mox.");
+});
+onClick("show-setup", async () => {
+  store.setSetupDone(false);
+  render();
+});
 // The Send to Mox shortcut's setup code (#27): where mox-send lives and who to sign in as.
 onClick("copy-setup", async () => {
   const settings = store.settings();

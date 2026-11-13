@@ -26,6 +26,8 @@ export const store = {
   saveSettings(settings: Settings | null) {
     write("mox.settings", settings && JSON.stringify(settings));
     write("mox.lastHandled", null);
+    // A new pairing means a new setup code for the shortcut.
+    write("mox.setupDone", null);
   },
   /** This installation's id (PROTOCOL.md §1). */
   deviceId(): string {
@@ -42,6 +44,9 @@ export const store = {
   /** Whether the person said the Send to Mox shortcut is installed. */
   shortcutAdded: () => read("mox.shortcutAdded") === "yes",
   setShortcutAdded: (added: boolean) => write("mox.shortcutAdded", added ? "yes" : null),
+  /** Whether the shortcut answered "Mox is ready", which finishes setup. */
+  setupDone: () => read("mox.setupDone") === "yes",
+  setSetupDone: (done: boolean) => write("mox.setupDone", done ? "yes" : null),
   lastHandled: () => read("mox.lastHandled"),
   setLastHandled: (value: string) => write("mox.lastHandled", value),
 };

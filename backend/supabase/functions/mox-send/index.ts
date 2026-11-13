@@ -11,11 +11,14 @@ Deno.serve(async (request) => {
     if (request.method !== "POST") return reply("Use POST.", 405);
     try {
         const { key, email, password, device } = credentialsFrom(request.headers);
-        const type = request.headers.get("content-type") ?? "";
-        const upload = type.startsWith("multipart/form-data")
-            ? await uploadFrom(await request.formData())
-            : uploadFromBody(new Uint8Array(await request.arrayBuffer()), request.headers.get("x-mox-name"), type);
         const token = await signIn(key, email, password);
+        const type = request.headers.get("content-type") ?? "";
+        const body = type.startsWith("multipart/form-data") ? null : new Uint8Array(await request.arrayBuffer());
+        // Running the shortcut by itself, with nothing shared, checks the setup.
+        if (body !== null && body.length === 0) return reply("Mox is ready. Share a photo or file to send it.", 200);
+        const upload = body === null
+            ? await uploadFrom(await request.formData())
+            : uploadFromBody(body, request.headers.get("x-mox-name"), type);
         await send(upload, key, token, device);
         return reply(upload.kind === "text" ? "Text sent to Mox." : `Sent ${upload.name} to Mox.`, 200);
     } catch (error) {
