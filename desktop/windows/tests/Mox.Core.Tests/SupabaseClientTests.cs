@@ -61,6 +61,7 @@ public class SupabaseClientTests
     public async Task Reads_the_slot_from_the_mox_schema()
     {
         var (client, fake) = Make();
+        using var _ = client;
         var item = await client.FetchCurrentAsync();
         Assert.Equal("a.jpg", item!.OriginalName);
         Assert.Contains(fake.Calls, c => c.Path.StartsWith("/rest/v1/current_file", StringComparison.Ordinal) && c.Profile == "mox");
@@ -70,6 +71,7 @@ public class SupabaseClientTests
     public async Task Sends_bytes_before_the_row()
     {
         var (client, fake) = Make();
+        using var _ = client;
         var row = await client.SendTextAsync("hola");
         Assert.True(row.IsText);
         var upload = fake.Calls.FindIndex(c => c.Path.StartsWith("/storage/v1/object/mox/current", StringComparison.Ordinal));
@@ -81,6 +83,7 @@ public class SupabaseClientTests
     public async Task Signs_in_again_once_after_a_401()
     {
         var (client, fake) = Make();
+        using var _ = client;
         fake.ExpireOnce = true;
         await client.CheckSchemaAsync();
         Assert.Equal(2, fake.SignIns);
