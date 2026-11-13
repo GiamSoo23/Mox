@@ -33,7 +33,7 @@ internal static partial class WhatToSend
             dynamic shell = Activator.CreateInstance(shellType)!;
             foreach (var window in shell.Windows())
             {
-                if (window is null || (IntPtr)(long)window.HWND != foreground)
+                if (window is null || new IntPtr((long)window.HWND) != foreground)
                 {
                     continue;
                 }
