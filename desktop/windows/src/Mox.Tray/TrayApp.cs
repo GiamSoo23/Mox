@@ -31,7 +31,7 @@ internal sealed class TrayApp : IDisposable
         menu.Items.Add("Send (Ctrl+Shift+M)", null, async (_, _) => await SendAsync());
         menu.Items.Add("Pair with a link…", null, (_, _) => Pair());
         menu.Items.Add("Quit Mox", null, (_, _) => Application.Exit());
-        icon = new NotifyIcon { Icon = SystemIcons.Application, Text = "Mox", ContextMenuStrip = menu, Visible = true };
+        icon = new NotifyIcon { Icon = LoadIcon(), Text = "Mox", ContextMenuStrip = menu, Visible = true };
         poll.Tick += async (_, _) => await PollAsync();
         hotKey = new HotKey(Keys.M, async () => await SendAsync());
         Connect(SettingsStore.Load());
@@ -179,6 +179,13 @@ internal sealed class TrayApp : IDisposable
         {
             icon.ShowBalloonTip(5000, "Mox couldn't send it", error.Message, ToolTipIcon.Warning);
         }
+    }
+
+    /// <summary>Mox's own icon, embedded in the app (the logo's navy tile and mint M).</summary>
+    private static Icon LoadIcon()
+    {
+        using var stream = typeof(TrayApp).Assembly.GetManifestResourceStream("mox.ico");
+        return stream is null ? SystemIcons.Application : new Icon(stream);
     }
 
     public void Dispose()
