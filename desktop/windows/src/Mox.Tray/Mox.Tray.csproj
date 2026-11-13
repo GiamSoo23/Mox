@@ -9,9 +9,13 @@
     <RootNamespace>Mox.Tray</RootNamespace>
     <AssemblyName>Mox</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ApplicationIcon>mox.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="mox.ico" LogicalName="mox.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mox.Core\Mox.Core.csproj" />
