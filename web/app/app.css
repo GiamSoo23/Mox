@@ -1,6 +1,7 @@
 textarea { width: 100%; min-height: 5rem; box-sizing: border-box; padding: 0.75rem; border-radius: 12px;
   border: 1px solid var(--border); background: transparent; color: inherit; font: inherit; }
 .file-button input { display: none; }
+
 #latest-detail { white-space: pre-wrap; word-break: break-word; }
 #message.error { color: var(--accent); }
 .link { background: none; border: none; color: var(--accent); padding: 0; font: inherit; text-decoration: underline; }
@@ -10,3 +11,39 @@ textarea { width: 100%; min-height: 5rem; box-sizing: border-box; padding: 0.75r
 .done { color: var(--muted); }
 .status { margin-top: 0.5rem; }
 .setup-steps li.locked { opacity: 0.4; pointer-events: none; }
+
+/* Mox's own colors, from the logo: navy and mint, on white (#54). */
+:root, :root:not(.x) {
+  --navy: #1a1b2e;
+  --mint: #5fcba6;
+  --accent: #1a1b2e;
+  --bg: #ffffff;
+  --card: #ffffff;
+  --text: #1a1b2e;
+  --muted: #6b6f80;
+  --border: #e6e7ec;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #ffffff; --card: #ffffff; --text: #1a1b2e; --muted: #6b6f80; --border: #e6e7ec; }
+}
+body { background: var(--bg); color: var(--text); }
+.button { background: var(--mint); color: var(--navy); border: 2px solid var(--mint); }
+.button.secondary { background: transparent; color: var(--navy); border: 2px solid var(--navy); }
+a { color: var(--navy); }
+#message.error { color: #c0392b; }
+
+/* One screen, no scrolling. */
+main { padding-top: 0.5rem; }
+.app-header { display: flex; align-items: center; justify-content: center; gap: 0.6rem; margin: 0.5rem 0 1rem; }
+.app-header img { border-radius: 9px; }
+.app-header h1 { font-size: 1.6rem; margin: 0; }
+.card { padding: 1rem 1.1rem; margin-bottom: 0.9rem; }
+.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.card-head h2 { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-link { font-size: 1.4rem; text-decoration: none; line-height: 1; padding: 0.2rem 0.4rem; }
+.row { display: flex; gap: 0.6rem; margin-top: 0.75rem; }
+.row .button { flex: 1; margin: 0; padding: 0.75rem 0.5rem; }
+.row .button[hidden] { display: none; }
+.clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  white-space: normal; margin: 0.25rem 0 0; }
+.footer-line { margin-top: 1rem; }

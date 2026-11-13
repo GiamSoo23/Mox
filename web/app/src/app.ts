@@ -160,7 +160,7 @@ async function refresh(fromTap: boolean): Promise<boolean> {
     ? (fresh ? "New" : "")
     : `${humanSize(item.size_bytes)} · from ${sourceName(item.source_platform)}${fresh ? " · new" : ""}`;
   show("copy-text", item.kind === "text" || isImage(item));
-  $("save-file").textContent = isImage(item) ? "Save or share…" : "Save, copy or share…";
+  $("save-file").textContent = item.kind === "text" ? "" : isImage(item) ? "Save or share…" : "Save, copy or share…";
   show("save-file", item.kind !== "text");
   if (fresh) store.setLastHandled(item.uploaded_at);
   if (item.kind === "text") $("latest-detail").textContent = await textOf();
@@ -289,12 +289,13 @@ async function sendFile(file: File) {
   await refresh(false);
 }
 
-async function sendText() {
+/** Sends what's on this iPhone's clipboard. iPhone asks to allow pasting first. */
+async function sendClipboard() {
   if (!client) return;
-  const box = $<HTMLTextAreaElement>("text-to-send");
-  message("Sending text…");
-  await client.sendText(box.value);
-  box.value = "";
+  const text = await navigator.clipboard.readText();
+  if (!text.trim()) throw new Error("There's no text on the clipboard. Copy something first.");
+  message("Sending what you copied…");
+  await client.sendText(text);
   message("Sent.");
   await refresh(false);
 }
@@ -349,7 +350,7 @@ onClick("refresh", async () => {
 });
 onClick("copy-text", () => copyLatest());
 onClick("save-file", saveFile);
-onClick("send-text", sendText);
+onClick("send-clipboard", sendClipboard);
 onClick("unpair", async () => {
   if (!confirm("Unpair this iPhone? You can pair it again from your computer.")) return;
   store.saveSettings(null);
