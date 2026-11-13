@@ -10,13 +10,13 @@ public static class BundledFiles
 {
     public sealed record Migration(string Version, string Name, string Sql);
 
-    public sealed record Function(string Slug, IReadOnlyList<(string Name, string Content)> Files);
+    public sealed record EdgeFunction(string Slug, IReadOnlyList<(string Name, string Content)> Files);
 
     private static readonly Assembly Self = typeof(BundledFiles).Assembly;
 
     public static IReadOnlyList<Migration> Migrations { get; } = LoadMigrations();
 
-    public static IReadOnlyList<Function> Functions { get; } = LoadFunctions();
+    public static IReadOnlyList<EdgeFunction> Functions { get; } = LoadFunctions();
 
     private static string Read(string resource)
     {
@@ -37,12 +37,12 @@ public static class BundledFiles
                 return new Migration(stem[..underscore], stem[(underscore + 1)..], Read(n));
             })];
 
-    private static List<Function> LoadFunctions() =>
+    private static List<EdgeFunction> LoadFunctions() =>
         [.. Self.GetManifestResourceNames()
             .Where(n => n.StartsWith("functions/", StringComparison.Ordinal))
             .Select(n => (Resource: n, Parts: n["functions/".Length..].Replace('\\', '/').Split('/')))
             .GroupBy(x => x.Parts[0], StringComparer.Ordinal)
             .OrderBy(g => g.Key, StringComparer.Ordinal)
-            .Select(g => new Function(g.Key, [.. g.OrderBy(x => x.Parts[^1], StringComparer.Ordinal)
+            .Select(g => new EdgeFunction(g.Key, [.. g.OrderBy(x => x.Parts[^1], StringComparer.Ordinal)
                 .Select(x => (x.Parts[^1], Read(x.Resource)))]))];
 }
