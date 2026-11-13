@@ -25,11 +25,11 @@ public sealed partial record PairingLink(
     public static PairingLink Parse(string link)
     {
         var parameters = ReadParameters(ExtractRaw(link.Trim()));
-        foreach (var key in Required)
+        foreach (var required in Required)
         {
-            if (!parameters.TryGetValue(key, out var value) || value.Length == 0)
+            if (!parameters.TryGetValue(required, out var value) || value.Length == 0)
             {
-                throw new PairingException($"missing-{key}", "This pairing link is incomplete. Scan the QR code again.");
+                throw new PairingException($"missing-{required}", "This pairing link is incomplete. Scan the QR code again.");
             }
         }
 
