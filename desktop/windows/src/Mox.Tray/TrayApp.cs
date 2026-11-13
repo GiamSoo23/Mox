@@ -18,6 +18,7 @@ internal sealed class TrayApp : IDisposable
     private readonly System.Windows.Forms.Timer poll = new() { Interval = 5000 };
     private readonly HttpClient http = new();
     private readonly Guid deviceId = SettingsStore.DeviceId();
+    private readonly HotKey hotKey;
     private SupabaseClient? client;
     private bool busy;
 
@@ -27,11 +28,17 @@ internal sealed class TrayApp : IDisposable
         menu.Items.Add(status);
         menu.Items.Add(latest);
         menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Send (Ctrl+Shift+M)", null, async (_, _) => await SendAsync());
         menu.Items.Add("Pair with a link…", null, (_, _) => Pair());
         menu.Items.Add("Quit Mox", null, (_, _) => Application.Exit());
         icon = new NotifyIcon { Icon = SystemIcons.Application, Text = "Mox", ContextMenuStrip = menu, Visible = true };
         poll.Tick += async (_, _) => await PollAsync();
+        hotKey = new HotKey(Keys.M, async () => await SendAsync());
         Connect(SettingsStore.Load());
+        if (!hotKey.Registered)
+        {
+            icon.ShowBalloonTip(5000, "Mox", "Another app is using Ctrl+Shift+M. Use Send in Mox's menu.", ToolTipIcon.Warning);
+        }
     }
 
     private void Connect(MoxSettings? settings)
@@ -133,9 +140,52 @@ internal sealed class TrayApp : IDisposable
         icon.ShowBalloonTip(5000, "New file from your phone", $"{Path.GetFileName(path)} · in Downloads and on the clipboard", ToolTipIcon.Info);
     }
 
+    /// <summary>
+    /// Ctrl+Shift+M: the file selected in Explorer, or else what's copied
+    /// (text, a copied file or an image). Bytes first, then the row (§4.3, §4.4).
+    /// </summary>
+    private async Task SendAsync()
+    {
+        if (client is null)
+        {
+            icon.ShowBalloonTip(5000, "Mox", "Pair Mox first: right-click its icon and choose Pair with a link….", ToolTipIcon.Info);
+            return;
+        }
+
+        var item = WhatToSend.Pick();
+        if (item is null)
+        {
+            icon.ShowBalloonTip(5000, "Mox", "Select a file in Explorer, or copy something, then press Ctrl+Shift+M.", ToolTipIcon.Info);
+            return;
+        }
+
+        try
+        {
+            var sent = item switch
+            {
+                WhatToSend.FileItem file => await client.SendFileAsync(file.Path),
+                WhatToSend.TextItem text => await client.SendTextAsync(text.Text),
+                _ => null,
+            };
+            if (sent is not null)
+            {
+                // Don't receive our own send back.
+                SettingsStore.SetLastHandled(sent.UploadedAt ?? "");
+                latest.Text = sent.IsText ? "Text" : sent.OriginalName;
+                icon.ShowBalloonTip(3000, "Sent", sent.IsText ? "Text sent to your phone." : $"{sent.OriginalName} sent to your phone.", ToolTipIcon.Info);
+            }
+        }
+        catch (Exception error) when (error is MoxException or HttpRequestException or IOException or UnauthorizedAccessException)
+        {
+            icon.ShowBalloonTip(5000, "Mox couldn't send it", error.Message, ToolTipIcon.Warning);
+        }
+    }
+
     public void Dispose()
     {
         poll.Dispose();
+        hotKey.Dispose();
+        client?.Dispose();
         http.Dispose();
         icon.Visible = false;
         icon.Dispose();
