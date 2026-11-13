@@ -9,7 +9,7 @@ namespace Mox.Core;
 /// Speaks the Mox protocol (shared/PROTOCOL.md §2–§4) to the owner's
 /// Supabase project. No SDK, the same few calls as the Mac and Android apps.
 /// </summary>
-public sealed class SupabaseClient(MoxSettings settings, Guid deviceId, HttpClient http)
+public sealed class SupabaseClient(MoxSettings settings, Guid deviceId, HttpClient http) : IDisposable
 {
     private const string Bucket = "mox";
     private const string ObjectName = "current";
@@ -199,6 +199,8 @@ public sealed class SupabaseClient(MoxSettings settings, Guid deviceId, HttpClie
             tokenLock.Release();
         }
     }
+
+    public void Dispose() => tokenLock.Dispose();
 
     private sealed record MetaRow([property: JsonPropertyName("schema_version")] int SchemaVersion);
 
