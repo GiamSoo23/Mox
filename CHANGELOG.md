@@ -8,6 +8,29 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-13 · iPhone and text
+
+### Added
+- **Mox for iPhone**: a home screen web app. Pair it with the Mac's QR
+  code, get notified when something arrives (Web Push from your own
+  project), and copy texts and photos with one tap
+  ([#54](https://github.com/GiamSoo23/Mox/issues/54)).
+- **Send to Mox**, an iPhone shortcut in the Share menu of Photos and
+  Files, through a new `mox-send` function in your project
+  ([#27](https://github.com/GiamSoo23/Mox/issues/27)).
+- **Text between devices.** ⌃⇧M sends what you copied on the Mac; sharing
+  text to Mox on Android or iPhone sends it too. It arrives on the
+  clipboard, not as a file ([#101](https://github.com/GiamSoo23/Mox/issues/101)).
+
+### Fixed
+- Closing the setup window midway could leave the Mac with old settings;
+  stale pairings now say what to do ([#117](https://github.com/GiamSoo23/Mox/issues/117)).
+- An old copy of Mox kept running after an update
+  ([#140](https://github.com/GiamSoo23/Mox/issues/140)).
+
+### Changed
+- Android no longer shows the "One file, between devices" tagline.
+
 ## [0.7.1] - 2026-11-09 · Polish
 
 ### Added
@@ -176,7 +199,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/GiamSoo23/Mox/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...v0.7.0
 [0.5.0]: https://github.com/GiamSoo23/Mox/compare/v0.3.0...v0.5.0
