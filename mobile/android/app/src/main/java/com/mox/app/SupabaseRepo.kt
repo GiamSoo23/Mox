@@ -119,6 +119,28 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
         replaceRow(displayName, effectiveMime, sizeBytes, kind = "file")
     }
 
+    override suspend fun uploadBundle(zip: ByteArray, itemCount: Int): CurrentFile =
+        withContext(Dispatchers.IO) {
+            if (zip.size > CurrentFile.MAX_SIZE) {
+                val total = humanBytes(zip.size.toLong())
+                throw MoxException("These files add up to $total, and Mox sends up to 50 MB.")
+            }
+            send { token ->
+                Request.Builder()
+                    .url("$baseUrl/storage/v1/object/$bucket/$objectName")
+                    .headers(authHeaders(token, "x-upsert" to "true"))
+                    .post(zip.toRequestBody("application/zip".toMediaType()))
+                    .build()
+            }
+            replaceRow(
+                Bundles.fileName(itemCount),
+                "application/zip",
+                zip.size.toLong(),
+                kind = "bundle",
+                itemCount = itemCount
+            )
+        }
+
     override suspend fun uploadText(text: String): CurrentFile = withContext(Dispatchers.IO) {
         val bytes = TextPayload.encode(text)
         send { token ->
@@ -136,7 +158,8 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
         name: String,
         mime: String,
         size: Long,
-        kind: String
+        kind: String,
+        itemCount: Int = 1
     ): CurrentFile {
         val row = JSONObject()
             .put("id", 1)
@@ -144,7 +167,7 @@ class SupabaseRepo(private val settings: MoxSettings, private val deviceId: Stri
             .put("mime_type", mime)
             .put("size_bytes", size)
             .put("kind", kind)
-            .put("item_count", 1)
+            .put("item_count", itemCount)
             .put("source_platform", "android")
             .put("source_device_id", deviceId)
         val written = send { token ->

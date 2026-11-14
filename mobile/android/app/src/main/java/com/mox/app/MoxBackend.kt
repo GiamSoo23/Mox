@@ -25,6 +25,9 @@ interface MoxBackend {
         mime: String?
     ): CurrentFile
 
+    /** Uploads several files packed by [Bundles.write] as one bundle (§9). */
+    suspend fun uploadBundle(zip: ByteArray, itemCount: Int): CurrentFile
+
     /** Uploads plain text and makes it the current item (#101). */
     suspend fun uploadText(text: String): CurrentFile
 
