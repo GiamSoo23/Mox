@@ -52,6 +52,22 @@ public final class SupabaseService {
         return try await upload(url, name: url.lastPathComponent, mime: mime, size: size, kind: "file")
     }
 
+    /// Sends what was selected: one file as is, or several files and folders
+    /// as a bundle (PROTOCOL.md §9).
+    public func uploadSelection(_ paths: [String]) async throws -> CurrentFile {
+        let urls = paths.map { URL(fileURLWithPath: $0) }
+        let items = try BundleWriter.items(for: urls)
+        guard !items.isEmpty else { throw MoxError.upload("There's nothing to send in what's selected.") }
+        if items.count == 1 { return try await uploadFile(localPath: items[0].source.path) }
+        let zip = FileManager.default.temporaryDirectory.appendingPathComponent("mox-bundle-\(UUID().uuidString).zip")
+        defer { try? FileManager.default.removeItem(at: zip) }
+        try BundleWriter.write(items, to: zip)
+        let size = (try FileManager.default.attributesOfItem(atPath: zip.path)[.size] as? NSNumber)?.int64Value ?? 0
+        guard size <= CurrentFile.maxSize else { throw MoxError.tooLarge(size) }
+        return try await upload(zip, name: BundleWriter.fileName(count: items.count), mime: "application/zip",
+                                size: size, kind: "bundle", itemCount: items.count)
+    }
+
     /// Sends plain text as a text item (#101).
     public func uploadText(_ text: String) async throws -> CurrentFile {
         let data = try TextPayload.encode(text)
@@ -70,7 +86,8 @@ public final class SupabaseService {
         return TextPayload.decode(try Data(contentsOf: tmp))
     }
 
-    private func upload(_ url: URL, name: String, mime: String, size: Int64, kind: String) async throws -> CurrentFile {
+    private func upload(_ url: URL, name: String, mime: String, size: Int64, kind: String,
+                        itemCount: Int = 1) async throws -> CurrentFile {
         _ = try await send(upload: url) { token in
             var req = self.request("storage/v1/object/\(self.bucket)/\(self.objectName)", token: token)
             req.httpMethod = "POST"
@@ -85,7 +102,7 @@ public final class SupabaseService {
             "mime_type": mime,
             "size_bytes": size,
             "kind": kind,
-            "item_count": 1,
+            "item_count": itemCount,
             "source_platform": "macos",
             "source_device_id": deviceID.uuidString.lowercased()
         ]

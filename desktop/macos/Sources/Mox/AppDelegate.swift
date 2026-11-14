@@ -144,24 +144,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             menuBar?.showError("No file selected. Click a file in a Finder window, then press the hotkey.")
             return
         }
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: first, isDirectory: &isDir)
-        guard !isDir.boolValue else {
-            menuBar?.showError("Folders aren't supported — zip it first.")
-            return
-        }
 
         menuBar?.tintBusy(true)
-        menuBar?.showStatus("Uploading \((first as NSString).lastPathComponent)…")
+        let what = paths.count == 1 ? (first as NSString).lastPathComponent : "\(paths.count) items"
+        menuBar?.showStatus("Uploading \(what)…")
         Task {
             do {
-                let row = try await supabase.uploadFile(localPath: first)
+                let row = try await supabase.uploadSelection(paths)
                 await MainActor.run {
                     self.menuBar?.update(current: row)
                     self.menuBar?.tintBusy(false)
-                    self.menuBar?.showStatus("Sent \(row.originalName)")
-                    Notifier.show(title: "Sent",
-                                  body: "\(row.originalName) · \(humanSize(row.sizeBytes))")
+                    self.menuBar?.showStatus("Sent \(row.label)")
+                    Notifier.show(title: "Sent", body: "\(row.label) · \(humanSize(row.sizeBytes))")
                 }
             } catch {
                 await MainActor.run {

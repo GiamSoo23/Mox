@@ -19,6 +19,12 @@ public struct CurrentFile: Decodable, Equatable {
     /// Text to paste, not a file to save (#101).
     public var isText: Bool { kind == "text" }
 
+    /// Several files in one zip, to unpack (PROTOCOL.md §9).
+    public var isBundle: Bool { kind == "bundle" }
+
+    /// What people see: the file's name, or "5 files" for a bundle.
+    public var label: String { isBundle ? "\(itemCount) files" : originalName }
+
     /// The row's JSON uses the table's snake_case column names. Unknown
     /// columns are ignored, so newer schemas don't break this client.
     enum CodingKeys: String, CodingKey {
