@@ -74,7 +74,13 @@ final class MenuBarController: NSObject {
         guard let file = current, file.sourceDeviceId != deviceID, file.uploadedAt != lastHandled else { return }
         defaults.set(file.uploadedAt, forKey: lastHandledKey)
         tintBusy(false, accent: true)
-        if file.isText { receiveText(file) } else { autoSaveFromPhone(file) }
+        if file.isText {
+            receiveText(file)
+        } else if file.isBundle {
+            receiveBundle(file, announce: true)
+        } else {
+            autoSaveFromPhone(file)
+        }
     }
 
     /// Downloads a phone-sent file into ~/Downloads with a unique name and
@@ -197,7 +203,7 @@ final class MenuBarController: NSObject {
         if let file = current, file.isText {
             addTextItems(file, to: menu)
         } else if let file = current {
-            let title = NSMenuItem(title: file.originalName, action: nil, keyEquivalent: "")
+            let title = NSMenuItem(title: file.label, action: nil, keyEquivalent: "")
             title.isEnabled = false
             menu.addItem(title)
 
@@ -239,6 +245,7 @@ final class MenuBarController: NSObject {
 
     @objc private func saveToDownloads() {
         guard let file = current, let supabase else { return }
+        if file.isBundle { return receiveBundle(file, announce: false) }
         let dest = FileManager.default
             .urls(for: .downloadsDirectory, in: .userDomainMask).first!
             .appendingPathComponent(file.originalName)
