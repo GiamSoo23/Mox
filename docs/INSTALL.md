@@ -2,13 +2,16 @@
 
 About ten minutes, most of it waiting for Supabase. You need:
 
-- a Mac with macOS 13 or later,
-- an Android phone with Android 8 or later,
+- a computer: a **Mac** with macOS 13 or later, or a **Windows** PC,
+- a phone: an **Android** phone with Android 8 or later, or an **iPhone**,
 - a free [Supabase](https://supabase.com) account. Mox keeps your files in
   **your own** Supabase project, so nobody else holds them. If you don't have
   an account, you can create one during setup.
 
-## 1. Install Mox on the Mac
+## 1. Install Mox on the computer
+
+**On Windows,** skip to [Windows](#on-windows) below. The rest of this
+section is for the Mac.
 
 1. Download **Mox-macOS.zip** from the
    [latest release](https://github.com/GiamSoo23/Mox/releases/latest) and
@@ -93,6 +96,21 @@ doesn't work, use **Use an access token instead**:
 2. Paste it into Mox. It's used only for this setup and isn't saved.
 3. Delete the token afterwards if you like.
 
+### On Windows
+
+1. Download **Mox for Windows (most PCs)** from the
+   [latest release](https://github.com/GiamSoo23/Mox/releases/latest).
+   Choose **(ARM)** only for ARM PCs, such as Windows on a Mac with Apple
+   silicon. **Settings → System → About → System type** tells you which.
+2. Open **Mox-Windows-x64.exe**. Windows warns that it's an unrecognized app,
+   because Mox isn't signed yet: click **More info → Run anyway**.
+3. The setup window opens: **Sign in** with Supabase, choose a project, and
+   wait for the progress bar. A QR code appears at the end.
+
+Mox lives in the notification area, at the bottom right (maybe under the
+**^** arrow). It starts with Windows; turn that off in its menu with **Start
+with Windows**.
+
 ## 3. Pair your phone
 
 When the checklist finishes, Mox shows a QR code. Take your phone and scan it
@@ -115,15 +133,38 @@ The code opens a page on your phone that gets Mox installed and paired:
 
    <img src="assets/install/ready.jpg" width="320" alt="Mox on the phone, paired and ready">
 
+### On an iPhone
+
+The QR code opens a page that sets up **Mox for iPhone**, an app on your home
+screen. Nothing to install from the App Store.
+
+1. Tap **Set up Mox for iPhone**, then **Copy pairing code**.
+2. Tap the **Share** button and choose **Add to Home Screen**.
+3. Open **Mox** from your home screen and tap **Paste pairing code**.
+4. Follow its three steps: turn on notifications, add the **Send to Mox**
+   shortcut, and connect it (paste the setup code and run it until it says
+   **Mox is ready**).
+
+To send from Photos or Files, tap **Share → Send to Mox** at the bottom of
+the list. To send something you copied, open Mox and tap **What I copied**.
+When something arrives, tap the notification: texts and photos are copied
+right away.
+
 The QR code contains Mox's password for your project, so don't share it or
 send a screenshot of it. To pair another phone later, choose **Pair a
 Phone…** in the menu bar.
 
 ## 4. Use it
 
-- **Mac → phone:** select a file in Finder and press **⌘⇧M**.
-- **Phone → Mac:** in any app, tap **Share → Mox**. The file lands in
-  `~/Downloads` and on the clipboard.
+| From | How |
+|---|---|
+| **Mac** | Select a file in Finder and press **⌘⇧M**. To send copied text, press **⌃⇧M** |
+| **Windows** | Select a file in Explorer and press **Ctrl+Shift+M**. Anywhere else, the same keys send what you copied: text, a file or an image |
+| **Android** | In any app, tap **Share → Mox**, for files and text |
+| **iPhone** | **Share → Send to Mox**, or **What I copied** in Mox |
+
+Files land in Downloads (photos and videos in the gallery on Android), and
+files, images and texts go on the clipboard.
 
 ### Receiving with Mox closed
 
@@ -135,7 +176,11 @@ limits** and add Mox to the apps that never sleep.
 
 ## Uninstalling
 
-- **Phone:** uninstall Mox like any other app.
+- **Android:** uninstall Mox like any other app.
+- **iPhone:** remove Mox and the Send to Mox shortcut from the home screen
+  and the Shortcuts app.
+- **Windows:** choose **Quit Mox** in its menu, delete **Mox-Windows-x64.exe**,
+  and delete the folder `%APPDATA%\Mox`.
 - **Mac:** choose **Quit Mox**, delete Mox from Applications, then remove its
   saved settings in the Terminal:
   ```

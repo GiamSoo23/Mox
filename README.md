@@ -13,25 +13,27 @@ https://github.com/user-attachments/assets/03f4bb3e-eb76-4dc7-8794-5c927f6aafd4
 
 <!-- DEMO VIDEO: drag the video file here in GitHub's web editor (10 MB at most). -->
 
-There's no AirDrop between a Mac and an Android phone, so Mox fills the gap:
+AirDrop only works between Apple devices. Mox works between a **Mac or
+Windows PC** and an **Android phone or iPhone**:
 
-- **Mac → phone:** select a file in Finder and press **⌘⇧M**. It arrives in seconds, even with Mox closed.
-- **Phone → Mac:** in any app, tap **Share → Mox**. The file lands in `~/Downloads`.
+- **Computer → phone:** select a file and press **⌘⇧M** (Mac) or **Ctrl+Shift+M** (Windows). It arrives in seconds.
+- **Phone → computer:** tap **Share → Mox**. The file lands in Downloads.
+- **Text too:** copy something on one device and paste it on the other.
 
 Mox runs on **your own** free Supabase project. It has no servers and no
 accounts of its own, so nobody else holds your files.
 
 ## Install
 
-1. **Download** `Mox-macOS.zip` from the [latest release](https://github.com/GiamSoo23/Mox/releases/latest) and open the app.
+1. **Download** Mox for Mac or Windows from the [latest release](https://github.com/GiamSoo23/Mox/releases/latest) and open it.
 2. **Sign in with Supabase** and choose where Mox keeps your files. Mox sets everything up.
-3. **Scan the QR code** with your phone to install Mox there and pair it.
+3. **Scan the QR code** with your Android phone or iPhone to set up Mox there and pair it.
 
 | Welcome | Choose a project | Automatic setup |
 |---|---|---|
 | <img src="docs/assets/install/welcome.png" width="270" alt="Welcome to Mox"> | <img src="docs/assets/install/choose-project.png" width="270" alt="Choosing a project"> | <img src="docs/assets/install/progress.png" width="270" alt="Setup progress"> |
 
-You need macOS 13+, Android 8+ and a free Supabase account. New to Supabase, or
+You need macOS 13+ or Windows, Android 8+ or an iPhone, and a free Supabase account. New to Supabase, or
 macOS blocked the app? The **[install guide](docs/INSTALL.md)** walks through
 every screen.
 
@@ -39,8 +41,8 @@ every screen.
 
 ```mermaid
 flowchart LR
-    MAC["Mox for Mac<br/>Swift"]
-    AND["Mox for Android<br/>Kotlin"]
+    MAC["Mox for Mac (Swift)<br/>or Windows (C#)"]
+    AND["Mox for Android (Kotlin)<br/>or iPhone (web app)"]
     subgraph SUPA["Your own Supabase project"]
         direction TB
         ST[("Storage<br/>the file")]
@@ -71,7 +73,8 @@ sequenceDiagram
 - One file at a time, up to 50 MB. Files only, not plain text.
 - Free Supabase projects pause after a week without use. You can restore them from the dashboard.
 - macOS asks you to approve the app once, because it isn't notarized by Apple.
-- Mac and Android for now. iPhone and Windows are [planned](docs/ROADMAP.md).
+- On iPhone, Mox is a home screen web app plus a shortcut, so receiving takes one tap on the notification.
+- The apps aren't signed by Apple or Microsoft yet, so macOS and Windows warn once.
 
 ## Learn more
 
@@ -85,4 +88,4 @@ sequenceDiagram
 | **[Bug log](docs/BUGS.md)** · **[Changelog](CHANGELOG.md)** | What broke and why, and what changed in each version |
 | **[Contributing](CONTRIBUTING.md)** | Building from source and running the tests |
 
-Built with Swift, Kotlin and Supabase. [MIT license](LICENSE).
+Built with Swift, C#, Kotlin, TypeScript and Supabase. [MIT license](LICENSE).
