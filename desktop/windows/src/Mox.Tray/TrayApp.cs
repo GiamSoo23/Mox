@@ -32,6 +32,14 @@ internal sealed class TrayApp : IDisposable
         menu.Items.Add("Pair a Phone…", null, (_, _) => ShowPairing());
         menu.Items.Add("Set Up Mox…", null, (_, _) => ShowSetup());
         menu.Items.Add("Pair with a link…", null, (_, _) => Pair());
+        var startWithWindows = new ToolStripMenuItem("Start with Windows") { Checked = Startup.RunsAtLogin };
+        startWithWindows.Click += (_, _) =>
+        {
+            Startup.RunsAtLogin = !Startup.RunsAtLogin;
+            startWithWindows.Checked = Startup.RunsAtLogin;
+        };
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(startWithWindows);
         menu.Items.Add("Quit Mox", null, (_, _) => Application.Exit());
         icon = new NotifyIcon { Icon = LoadIcon(), Text = "Mox", ContextMenuStrip = menu, Visible = true };
         poll.Tick += async (_, _) => await PollAsync();

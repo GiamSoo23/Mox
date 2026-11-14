@@ -6,6 +6,8 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        Startup.QuitOtherCopies();
+        Startup.EnableOnFirstRun();
         ApplicationConfiguration.Initialize();
         using var tray = new TrayApp();
         Application.Run();
