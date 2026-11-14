@@ -9,10 +9,14 @@ public enum ProvisioningStep
 }
 
 /// <summary>Why setup stopped, in words a person can act on.</summary>
-public sealed class ProvisioningException(string message) : Exception(message)
+public sealed class ProvisioningException(string message, bool alreadyInstalled = false) : Exception(message)
 {
-    public static ProvisioningException AlreadyInstalled() => new(
-        "Mox is already set up in this project for another Mox user. Setting it up again means your other devices pair again.");
+    /// <summary>The project already has a Mox user: setup can go on only if the person agrees.</summary>
+    public bool AlreadyInstalled { get; } = alreadyInstalled;
+
+    public static ProvisioningException Installed() => new(
+        "Mox is already set up in this project. Setting it up again creates a new Mox user, and your other devices pair again.",
+        alreadyInstalled: true);
 }
 
 /// <summary>
@@ -42,7 +46,7 @@ public sealed class Provisioner(ManagementApi api, HttpClient http, Func<TimeSpa
         var owner = await api.RunSqlAsync(project.Id, "select owner_id is not null as has_owner from mox.meta").ConfigureAwait(false);
         if (FirstBool(owner, "has_owner") && !replaceExistingOwner)
         {
-            throw ProvisioningException.AlreadyInstalled();
+            throw ProvisioningException.Installed();
         }
 
         var previous = replaceExistingOwner ? await GeneratedOwnerAsync(project.Id).ConfigureAwait(false) : null;

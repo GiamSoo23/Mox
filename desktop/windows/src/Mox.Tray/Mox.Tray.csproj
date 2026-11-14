@@ -13,11 +13,17 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="mox.ico" LogicalName="mox.ico" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Mox.Core\Mox.Core.csproj" />
+  </ItemGroup>
+  <!-- Official builds carry the Mox OAuth app's secret, so "Sign in with
+       Supabase" works (#82, #33). Passed by CI, never committed. -->
+  <ItemGroup Condition="'$(MoxOAuthSecret)' != ''">
+    <AssemblyMetadata Include="MoxOAuthSecret" Value="$(MoxOAuthSecret)" />
   </ItemGroup>
 </Project>

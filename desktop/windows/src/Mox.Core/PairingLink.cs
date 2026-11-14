@@ -22,6 +22,23 @@ public sealed partial record PairingLink(
 
     public MoxSettings ToSettings() => new(new Uri(ProjectUrl), PublishableKey, Email, Password);
 
+    /// <summary>The link a phone scans (§8.1): the parameters go in the fragment, which browsers never send.</summary>
+    public static string Build(MoxSettings settings, string? desktopName, string page = "https://giamsoo23.github.io/Mox/pair/")
+    {
+        var parts = new List<(string Key, string Value)>
+        {
+            ("v", "1"), ("u", settings.ProjectUrl.ToString().TrimEnd('/')), ("k", settings.PublishableKey),
+            ("e", settings.Email), ("p", settings.Password),
+        };
+        if (!string.IsNullOrEmpty(desktopName))
+        {
+            parts.Add(("n", desktopName.Length > 64 ? desktopName[..64] : desktopName));
+        }
+
+        // EscapeDataString keeps only A–Z a–z 0–9 - . _ ~, as §8.2 asks.
+        return page + "#" + string.Join("&", parts.Select(p => $"{p.Key}={Uri.EscapeDataString(p.Value)}"));
+    }
+
     public static PairingLink Parse(string link)
     {
         var parameters = ReadParameters(ExtractRaw(link.Trim()));
