@@ -9,6 +9,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import java.io.File
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 sealed class UiState {
     object Loading : UiState()
@@ -127,6 +129,39 @@ class MoxViewModel(app: Application) : AndroidViewModel(app) {
         try {
             val row = backend.uploadFromContentUri(resolver, uri, name, size, mime)
             _state.value = UiState.Sent(row)
+        } catch (e: Exception) {
+            _state.value = UiState.Error(e.message ?: "Upload failed")
+        }
+    }
+
+    /** Sends several shared files as one bundle (PROTOCOL.md §9). */
+    fun uploadMany(uris: List<Uri>) = viewModelScope.launch {
+        val backend = repo ?: run {
+            _state.value = UiState.Error(NOT_PAIRED_MESSAGE)
+            return@launch
+        }
+        val resolver = getApplication<Application>().contentResolver
+        _state.value = UiState.Uploading("${uris.size} files")
+        try {
+            val zip = withContext(Dispatchers.IO) {
+                val described = uris.map { describe(resolver, it) }
+                Bundles.tooBig(
+                    described.map {
+                        it.first to it.second
+                    }
+                )?.let { throw MoxException(it) }
+                val names = Bundles.uniqueNames(described.map { FileNames.sanitize(it.first) })
+                Bundles.write(
+                    names.zip(uris) { name, uri ->
+                        val bytes = requireNotNull(resolver.openInputStream(uri)) {
+                            "Can't read $name."
+                        }
+                            .use { it.readBytes() }
+                        name to bytes
+                    }
+                )
+            }
+            _state.value = UiState.Sent(backend.uploadBundle(zip, uris.size))
         } catch (e: Exception) {
             _state.value = UiState.Error(e.message ?: "Upload failed")
         }

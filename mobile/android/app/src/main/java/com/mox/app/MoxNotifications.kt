@@ -68,6 +68,26 @@ object MoxNotifications {
         ctx.getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notif)
     }
 
+    /** Several files arrived and were saved (#20). */
+    fun showBundleSaved(
+        ctx: Context,
+        label: String,
+        from: String,
+        savedTo: String,
+        copiedToClipboard: Boolean
+    ) {
+        ensureChannel(ctx)
+        val body = (if (copiedToClipboard) "In clipboard · saved" else "Saved") + " to $savedTo"
+        val notif = NotificationCompat.Builder(ctx, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle("$label from $from")
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .build()
+        ctx.getSystemService(NotificationManager::class.java).notify(NOTIF_ID, notif)
+    }
+
     /** A text arrived: show it, and offer a tap to copy where the background copy was refused. */
     fun showText(ctx: Context, text: String, from: String, copiedToClipboard: Boolean) {
         ensureChannel(ctx)

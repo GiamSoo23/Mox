@@ -53,7 +53,11 @@ class FileReceiver(
             current.uploadedAt != lastHandled
         ) {
             setLastHandled(current.uploadedAt)
-            if (current.isText) copyText(current) else saveCopyAndNotify(current)
+            when {
+                current.isText -> copyText(current)
+                current.isBundle -> saveBundle(current)
+                else -> saveCopyAndNotify(current)
+            }
         }
         current
     }
@@ -67,7 +71,10 @@ class FileReceiver(
 
     private suspend fun saveCopyAndNotify(file: CurrentFile) {
         try {
-            val saved = saveToPublicStorage(file)
+            val saved =
+                saveToPublicStorage(file.originalName, file.mimeType) {
+                    backend.downloadToStream(it)
+                }
             // Writing the clipboard from the background works on the phones
             // tested (#37). Where it's refused, the notification offers a tap.
             val clipped = withContext(Dispatchers.Main) {
@@ -92,6 +99,38 @@ class FileReceiver(
             )
         } catch (e: Exception) {
             android.util.Log.w("Mox", "Auto-save failed: ${e.message}")
+        }
+    }
+
+    /**
+     * Several files (#20): each one goes where a single file of its type
+     * would, photos and videos in the gallery, and all of them on the clipboard.
+     */
+    private suspend fun saveBundle(item: CurrentFile) {
+        try {
+            val buffer = java.io.ByteArrayOutputStream()
+            backend.downloadToStream(buffer)
+            val entries = withContext(Dispatchers.Default) { Bundles.read(buffer.toByteArray()) }
+            val saved = entries.map { entry ->
+                val mime = android.webkit.MimeTypeMap.getSingleton()
+                    .getMimeTypeFromExtension(entry.name.substringAfterLast('.', "").lowercase())
+                saveToPublicStorage(entry.name, mime) { it.write(entry.data) }
+            }
+            val clipped = withContext(Dispatchers.Main) {
+                runCatching {
+                    val clip = ClipData.newUri(ctx.contentResolver, item.label, saved[0].uri)
+                    saved.drop(1).forEach { clip.addItem(ClipData.Item(it.uri)) }
+                    val manager = ctx.getSystemService(
+                        Context.CLIPBOARD_SERVICE
+                    ) as ClipboardManager
+                    manager.setPrimaryClip(clip)
+                    true
+                }.getOrDefault(false)
+            }
+            val places = saved.map { it.locationLabel }.distinct().joinToString(" and ")
+            MoxNotifications.showBundleSaved(ctx, item.label, item.sourceName, places, clipped)
+        } catch (e: Exception) {
+            android.util.Log.w("Mox", "Receiving ${item.label} failed: ${e.message}")
         }
     }
 
@@ -131,41 +170,44 @@ class FileReceiver(
      * the Camera folder (visible in the gallery), everything else in
      * Downloads. See [SaveDestination].
      */
-    private suspend fun saveToPublicStorage(file: CurrentFile): SavedFile =
-        withContext(Dispatchers.IO) {
-            val resolver = ctx.contentResolver
-            if (Build.VERSION.SDK_INT < 29) {
-                // Android 8–9 has no RELATIVE_PATH, and writing to shared folders
-                // would need the storage permission. Keep the file in app
-                // storage and share it through the FileProvider instead.
-                val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
-                val out = File(dir, FileNames.sanitize(file.originalName))
-                out.outputStream().use { backend.downloadToStream(it) }
-                val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", out)
-                return@withContext SavedFile(uri, locationLabel = "Mox")
-            }
-            val destination = SaveDestination.forMimeType(file.mimeType)
-            val collection = when (destination) {
-                SaveDestination.CAMERA_PHOTO -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                SaveDestination.CAMERA_VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                SaveDestination.DOWNLOADS -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
-            }
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, FileNames.sanitize(file.originalName))
-                file.mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
-                put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
-                // Hidden from other apps (the gallery included) until fully written.
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            val uri = resolver.insert(collection, values)
-                ?: throw IOException("Couldn't create an entry in ${destination.label}")
-            requireNotNull(resolver.openOutputStream(uri)) { "Can't write to ${destination.label}" }
-                .use { backend.downloadToStream(it) }
-            values.clear()
-            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            resolver.update(uri, values, null, null)
-            SavedFile(uri, destination.label)
+    private suspend fun saveToPublicStorage(
+        name: String,
+        mimeType: String?,
+        write: suspend (java.io.OutputStream) -> Unit
+    ): SavedFile = withContext(Dispatchers.IO) {
+        val resolver = ctx.contentResolver
+        if (Build.VERSION.SDK_INT < 29) {
+            // Android 8–9 has no RELATIVE_PATH, and writing to shared folders
+            // would need the storage permission. Keep the file in app
+            // storage and share it through the FileProvider instead.
+            val dir = File(ctx.cacheDir, "downloads").apply { mkdirs() }
+            val out = File(dir, FileNames.sanitize(name))
+            out.outputStream().use { write(it) }
+            val uri = FileProvider.getUriForFile(ctx, "${ctx.packageName}.fileprovider", out)
+            return@withContext SavedFile(uri, locationLabel = "Mox")
         }
+        val destination = SaveDestination.forMimeType(mimeType)
+        val collection = when (destination) {
+            SaveDestination.CAMERA_PHOTO -> MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            SaveDestination.CAMERA_VIDEO -> MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            SaveDestination.DOWNLOADS -> MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        }
+        val values = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, FileNames.sanitize(name))
+            mimeType?.let { put(MediaStore.MediaColumns.MIME_TYPE, it) }
+            put(MediaStore.MediaColumns.RELATIVE_PATH, destination.relativePath)
+            // Hidden from other apps (the gallery included) until fully written.
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+        }
+        val uri = resolver.insert(collection, values)
+            ?: throw IOException("Couldn't create an entry in ${destination.label}")
+        requireNotNull(resolver.openOutputStream(uri)) { "Can't write to ${destination.label}" }
+            .use { write(it) }
+        values.clear()
+        values.put(MediaStore.MediaColumns.IS_PENDING, 0)
+        resolver.update(uri, values, null, null)
+        SavedFile(uri, destination.label)
+    }
 
     companion object {
         const val PREFS = "mox"

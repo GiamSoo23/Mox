@@ -21,6 +21,12 @@ data class CurrentFile(
     /** Text to paste, not a file to save (#101). */
     val isText: Boolean get() = kind == "text"
 
+    /** Several files in one zip, to unpack (PROTOCOL.md §9). */
+    val isBundle: Boolean get() = kind == "bundle"
+
+    /** What people see: the file's name, or "5 files" for a bundle. */
+    val label: String get() = if (isBundle) "$itemCount files" else originalName
+
     /**
      * Checks the rules of §5. The database enforces them too; this lets the
      * app refuse a bad row with a clear message.

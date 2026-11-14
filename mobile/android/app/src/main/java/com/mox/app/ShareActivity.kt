@@ -30,8 +30,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.mox.app.ui.MoxTheme
 
 /**
- * Receives ACTION_SEND from other apps (Gallery, WhatsApp, browsers, …)
- * Uploads the first attached stream and closes itself.
+ * Receives ACTION_SEND and ACTION_SEND_MULTIPLE from other apps (Gallery,
+ * WhatsApp, browsers, …). One file goes as is, several as a bundle (#20).
  */
 class ShareActivity : ComponentActivity() {
     private val vm: MoxViewModel by viewModels()
@@ -39,10 +39,10 @@ class ShareActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val uri = extractUri(intent)
+        val uris = extractUris(intent)
         // Plain text shared from another app, such as a link or a note (#101).
-        val text = if (uri == null) intent.getStringExtra(Intent.EXTRA_TEXT) else null
-        if (uri == null && text.isNullOrBlank()) {
+        val text = if (uris.isEmpty()) intent.getStringExtra(Intent.EXTRA_TEXT) else null
+        if (uris.isEmpty() && text.isNullOrBlank()) {
             Toast.makeText(this, "Mox: nothing to send.", Toast.LENGTH_SHORT).show()
             finish()
             return
@@ -68,29 +68,34 @@ class ShareActivity : ComponentActivity() {
             }
         }
 
-        if (uri != null) vm.upload(uri) else vm.uploadText(text!!)
+        when {
+            uris.size > 1 -> vm.uploadMany(uris)
+            uris.size == 1 -> vm.upload(uris[0])
+            else -> vm.uploadText(text!!)
+        }
     }
 
-    private fun extractUri(intent: Intent): Uri? {
+    private fun extractUris(intent: Intent): List<Uri> {
         if (intent.action == Intent.ACTION_SEND) {
-            return if (Build.VERSION.SDK_INT >= 33) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            }
+            return listOfNotNull(
+                if (Build.VERSION.SDK_INT >= 33) {
+                    intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                }
+            )
         }
         if (intent.action == Intent.ACTION_SEND_MULTIPLE) {
-            // Mox is single-file — pick the first item if any.
             val list = if (Build.VERSION.SDK_INT >= 33) {
                 intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM, Uri::class.java)
             } else {
                 @Suppress("DEPRECATION")
                 intent.getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM)
             }
-            return list?.firstOrNull()
+            return list.orEmpty().filterNotNull().distinct()
         }
-        return null
+        return emptyList()
     }
 }
 
@@ -116,7 +121,7 @@ private fun ShareSheet(state: UiState, onDone: () -> Unit) {
                 Text("Sent ✓", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    state.file.originalName,
+                    state.file.label,
                     style = MaterialTheme.typography.bodySmall
                 )
                 Spacer(Modifier.height(16.dp))
