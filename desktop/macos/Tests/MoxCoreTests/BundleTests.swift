@@ -62,7 +62,7 @@ final class BundleTests: XCTestCase {
 
         let entries = try BundleReader.read(Data(contentsOf: zip))
         XCTAssertEqual(entries.map(\.path), items.map(\.path))
-        XCTAssertEqual(entries.map { String(decoding: $0.data, as: UTF8.self) }, ["dos", "uno", "tres"])
+        XCTAssertEqual(entries.map { String(bytes: $0.data, encoding: .utf8) }, ["dos", "uno", "tres"])
     }
 
     func testSameNamesFromTwoFoldersBothArrive() throws {
