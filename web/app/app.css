@@ -47,3 +47,7 @@ main { padding-top: 0.5rem; }
 .clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
   white-space: normal; margin: 0.25rem 0 0; }
 .footer-line { margin-top: 1rem; }
+.install-steps { padding-left: 1.2rem; margin: 0.75rem 0 0; }
+.install-steps > li { margin-bottom: 1rem; }
+.install-steps h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.glyph { display: inline-block; border: 1.5px solid var(--navy); border-radius: 4px; padding: 0 0.25rem; font-size: 0.8rem; }
