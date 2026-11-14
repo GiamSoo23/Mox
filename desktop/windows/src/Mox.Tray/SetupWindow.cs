@@ -193,8 +193,15 @@ internal sealed class SetupWindow : Form
             // Not knowing the members isn't a reason to stop.
         }
 
-        var steps = new ListBox { Bounds = new Rectangle(24, 80, 332, 260), BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10) };
-        Page(Ui.Title("Setting up Mox", 30), steps);
+        // A bar for the whole setup, so a step that takes minutes (a new
+        // project starting) still shows that something is happening.
+        var bar = new ProgressBar
+        {
+            Bounds = new Rectangle(24, 80, 332, 18), Style = ProgressBarStyle.Marquee,
+            Maximum = (int)ProvisioningStep.Finished, MarqueeAnimationSpeed = 30,
+        };
+        var steps = new ListBox { Bounds = new Rectangle(24, 115, 332, 225), BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 10) };
+        Page(Ui.Title("Setting up Mox", 30), bar, steps);
         working = true;
         try
         {
@@ -206,7 +213,13 @@ internal sealed class SetupWindow : Form
             }
 
             var provisioner = new Provisioner(api!, http);
-            provisioner.Progress += (step, detail) => BeginInvoke(() => steps.Items.Add(Describe(step, detail)));
+            provisioner.Progress += (step, detail) => BeginInvoke(() =>
+            {
+                steps.Items.Add(Describe(step, detail));
+                // Waiting for a new project has no measurable progress; the rest does.
+                bar.Style = step == ProvisioningStep.WaitingForProject ? ProgressBarStyle.Marquee : ProgressBarStyle.Continuous;
+                bar.Value = Math.Min((int)step, bar.Maximum);
+            });
             MoxSettings settings;
             try
             {
