@@ -29,6 +29,8 @@ internal sealed class TrayApp : IDisposable
         menu.Items.Add(latest);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Send (Ctrl+Shift+M)", null, async (_, _) => await SendAsync());
+        menu.Items.Add("Pair a Phone…", null, (_, _) => ShowPairing());
+        menu.Items.Add("Set Up Mox…", null, (_, _) => ShowSetup());
         menu.Items.Add("Pair with a link…", null, (_, _) => Pair());
         menu.Items.Add("Quit Mox", null, (_, _) => Application.Exit());
         icon = new NotifyIcon { Icon = LoadIcon(), Text = "Mox", ContextMenuStrip = menu, Visible = true };
@@ -48,7 +50,7 @@ internal sealed class TrayApp : IDisposable
         poll.Enabled = client is not null;
         if (client is null)
         {
-            icon.ShowBalloonTip(5000, "Mox", "Right-click the Mox icon and choose Pair with a link….", ToolTipIcon.Info);
+            ShowSetup();
         }
     }
 
@@ -140,6 +142,33 @@ internal sealed class TrayApp : IDisposable
         icon.ShowBalloonTip(5000, "New file from your phone", $"{Path.GetFileName(path)} · in Downloads and on the clipboard", ToolTipIcon.Info);
     }
 
+    /// <summary>Opens the setup window (#33). When it finishes, Mox connects and shows the pairing QR.</summary>
+    private void ShowSetup()
+    {
+        var setup = new SetupWindow(http, settings =>
+        {
+            SettingsStore.Save(settings);
+            Connect(settings);
+            ShowPairing();
+        });
+        setup.Show();
+        setup.Activate();
+    }
+
+    private void ShowPairing()
+    {
+        var settings = SettingsStore.Load();
+        if (settings is null)
+        {
+            ShowSetup();
+            return;
+        }
+
+        var window = new PairingWindow(settings);
+        window.Show();
+        window.Activate();
+    }
+
     /// <summary>
     /// Ctrl+Shift+M: the file selected in Explorer, or else what's copied
     /// (text, a copied file or an image). Bytes first, then the row (§4.3, §4.4).
@@ -182,7 +211,7 @@ internal sealed class TrayApp : IDisposable
     }
 
     /// <summary>Mox's own icon, embedded in the app (the logo's navy tile and mint M).</summary>
-    private static Icon LoadIcon()
+    internal static Icon LoadIcon()
     {
         using var stream = typeof(TrayApp).Assembly.GetManifestResourceStream("mox.ico");
         return stream is null ? SystemIcons.Application : new Icon(stream);

@@ -42,4 +42,13 @@ public class PairingLinkTests
         var link = "mox://pair?v=1&u=https%3A%2F%2Fa.supabase.co&k=sb_publishable_x&e=mox+desk%40mox.invalid&p=0123456789abcdef";
         Assert.Equal("mox+desk@mox.invalid", PairingLink.Parse(link).Email);
     }
+
+    [Fact]
+    public void A_built_link_parses_back_to_the_same_settings()
+    {
+        var settings = new MoxSettings(new Uri("https://abcd.supabase.co"), "sb_publishable_x", "mox+1@mox.invalid", "pass word/&=+0123456");
+        var link = PairingLink.Parse(PairingLink.Build(settings, "Ana's PC"));
+        Assert.Equal(settings, link.ToSettings() with { ProjectUrl = new Uri("https://abcd.supabase.co") });
+        Assert.Equal("Ana's PC", link.DesktopName);
+    }
 }

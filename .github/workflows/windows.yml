@@ -47,10 +47,14 @@ jobs:
       # for ARM (including Windows on a Mac in a virtual machine).
       - name: Publish Mox.exe
         shell: pwsh
+        env:
+          # Official builds carry the OAuth app's secret so Sign in with Supabase works (#33).
+          MOX_OAUTH_CLIENT_SECRET: ${{ secrets.MOX_OAUTH_CLIENT_SECRET }}
         run: |
           foreach ($rid in "win-x64", "win-arm64") {
             dotnet publish src/Mox.Tray -c Release -r $rid --self-contained true `
-              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o "out/$rid" --nologo
+              -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+              -p:MoxOAuthSecret="$env:MOX_OAUTH_CLIENT_SECRET" -o "out/$rid" --nologo
           }
       - uses: actions/upload-artifact@v7
         with:
