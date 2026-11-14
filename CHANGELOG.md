@@ -8,6 +8,36 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-13 · Windows
+
+Mox now works between a Mac or Windows PC and an Android phone or iPhone.
+
+### Added
+- **Mox for Windows**, a notification area app for x64 and ARM PCs. It
+  receives into Downloads and the clipboard, and **Ctrl+Shift+M** sends the
+  Explorer selection or what you copied
+  ([#29](https://github.com/GiamSoo23/Mox/issues/29),
+  [#30](https://github.com/GiamSoo23/Mox/issues/30),
+  [#31](https://github.com/GiamSoo23/Mox/issues/31)).
+- **Setup window on Windows**, like the Mac's: sign in to Supabase, choose a
+  project, follow a progress bar, and pair a phone with the QR code
+  ([#33](https://github.com/GiamSoo23/Mox/issues/33)).
+- Mox for Windows starts with Windows (a menu switch turns it off), and a
+  new copy quits any older one ([#32](https://github.com/GiamSoo23/Mox/issues/32)).
+- Releases include **Mox for Windows (most PCs)** and **Mox for Windows (ARM)**.
+- [A 10-minute beta test](docs/BETA_TEST.md) for new users.
+
+### Changed
+- Brighter app icons on the Mac and the iPhone home screen, and Mox's colors
+  on the pairing page and in Mox for iPhone.
+- The install guide and README cover all four platforms
+  ([#153](https://github.com/GiamSoo23/Mox/issues/153)).
+
+### Known limitations
+- The Windows app isn't signed yet: SmartScreen asks once (**More info → Run
+  anyway**).
+- "Send to → Mox" in Explorer's menu isn't there yet; use Ctrl+Shift+M.
+
 ## [0.7.2] - 2026-11-13 · iPhone and text
 
 ### Added
@@ -199,7 +229,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/GiamSoo23/Mox/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/GiamSoo23/Mox/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/GiamSoo23/Mox/compare/v0.5.0...v0.7.0
