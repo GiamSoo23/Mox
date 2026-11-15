@@ -21,7 +21,7 @@ public sealed class BundlesTests : IDisposable
         foreach (var zip in zips)
         {
             using var json = JsonDocument.Parse(File.ReadAllText(Path.ChangeExtension(zip, ".json")));
-            var expected = json.RootElement.GetProperty("files").EnumerateArray().Select(f => f.GetString()).ToList();
+            var expected = json.RootElement.GetProperty("files").EnumerateArray().Select(f => f.GetString()!).ToList();
             Assert.Equal(expected, Bundles.Read(File.ReadAllBytes(zip)).Select(e => e.Path).ToList());
         }
     }
