@@ -69,14 +69,16 @@ export function humanSize(bytes: number): string {
 }
 
 /** The row that makes uploaded bytes the current item (§4.4). */
-export function rowFor(name: string, mime: string, size: number, kind: "file" | "text", deviceId: string) {
+export function rowFor(
+  name: string, mime: string, size: number, kind: "file" | "text" | "bundle", deviceId: string, itemCount = 1,
+) {
   return {
     id: 1,
     original_name: name,
     mime_type: mime,
     size_bytes: size,
     kind,
-    item_count: 1,
+    item_count: itemCount,
     source_platform: "ios",
     source_device_id: deviceId,
   };

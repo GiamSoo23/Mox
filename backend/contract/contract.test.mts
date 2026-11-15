@@ -11,7 +11,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { MoxClient } from "../../web/app/src/client.ts";
-import { readBundle } from "../../web/app/src/bundle.ts";
+import { readBundle, writeBundle } from "../../web/app/src/bundle.ts";
 
 const env = (...names: string[]) => {
   const value = names.map((name) => process.env[name]).find(Boolean);
@@ -92,35 +92,19 @@ test("a text replaces the file in the slot (#101)", async () => {
   assert.equal(await (await client.download()).text(), "Hola 👋");
 });
 
-test("a bundle row is accepted and its zip unpacks after the round trip (§9)", async () => {
-  const zip = readFileSync(join(fixtures, "bundles/valid/two-photos.zip"));
-  const token = await signIn(owner);
-  const upload = await fetch(`${url}/storage/v1/object/mox/current`, {
-    method: "POST",
-    headers: headers(token, { "Content-Type": "application/zip", "x-upsert": "true" }),
-    body: zip,
-  });
-  assert.equal(upload.status, 200, await upload.clone().text());
-  const row = await fetch(`${url}/rest/v1/current_file?on_conflict=id`, {
-    method: "POST",
-    headers: headers(token, {
-      "Content-Type": "application/json",
-      "Content-Profile": "mox",
-      Prefer: "resolution=merge-duplicates,return=representation",
-    }),
-    body: JSON.stringify({
-      id: 1, original_name: "Mox – 2 files.zip", mime_type: "application/zip", size_bytes: zip.length,
-      kind: "bundle", item_count: 2, source_platform: "macos", source_device_id: crypto.randomUUID(),
-    }),
-  });
-  // 201 when the row is new, 200 when it replaces the one already there.
-  assert.ok([200, 201].includes(row.status), await row.clone().text());
+test("a bundle goes up with the client and unpacks after the round trip (§9, #173)", async () => {
+  const photos = await readBundle(readFileSync(join(fixtures, "bundles/valid/two-photos.zip")));
+  const sent = await client.sendBundle(writeBundle(photos.map((p) => ({ name: p.name, data: p.data }))), photos.length);
+  assert.equal(sent.kind, "bundle");
+  assert.equal(sent.item_count, 2);
+  assert.equal(sent.original_name, "Mox – 2 files.zip");
+  assert.equal(sent.mime_type, "application/zip");
 
   const current = await client.current();
-  assert.equal(current?.kind, "bundle");
-  assert.equal(current?.item_count, 2);
+  assert.deepEqual(current, sent);
   const entries = await readBundle(new Uint8Array(await (await client.download()).arrayBuffer()));
   assert.deepEqual(entries.map((e) => e.path), ["IMG_0001.jpg", "IMG_0002.jpg"]);
+  assert.deepEqual(entries.map((e) => [...e.data]), photos.map((p) => [...p.data]));
 });
 
 test("the publishable key alone reads nothing", async () => {

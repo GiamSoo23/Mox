@@ -1,7 +1,7 @@
 // Mox for iPhone (#54): a home screen web app that pairs with the desktop,
 // receives through Web Push, and sends photos, files and text.
 import { parsePairingLink } from "../../pair/pairing.js";
-import { readBundle, typeFor } from "./bundle.ts";
+import { checkBundleSize, readBundle, typeFor, uniqueNames, writeBundle } from "./bundle.ts";
 import { MoxClient } from "./client.ts";
 import { base64UrlToBytes, checkFileSize, humanSize, isNew, type Item, type Settings, sourceName } from "./protocol.ts";
 import { store } from "./store.ts";
@@ -297,6 +297,20 @@ async function sendFile(file: File) {
   await refresh(false);
 }
 
+/** Several photos or files go as one bundle (PROTOCOL.md §9). */
+async function sendFiles(files: File[]) {
+  if (!client) return;
+  const names = uniqueNames(files.map((file) => file.name));
+  checkBundleSize(files.map((file, i) => ({ name: names[i], size: file.size })));
+  message(`Sending ${files.length} files…`);
+  const zip = writeBundle(await Promise.all(
+    files.map(async (file, i) => ({ name: names[i], data: new Uint8Array(await file.arrayBuffer()) })),
+  ));
+  await client.sendBundle(zip, files.length);
+  message(`Sent ${files.length} files.`);
+  await refresh(false);
+}
+
 /** Sends what's on this iPhone's clipboard. iPhone asks to allow pasting first. */
 async function sendClipboard() {
   if (!client) return;
@@ -367,9 +381,10 @@ onClick("unpair", async () => {
 });
 $<HTMLInputElement>("file-to-send").addEventListener("change", (event) => {
   const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
+  const files = [...(input.files ?? [])];
   input.value = "";
-  if (file) void run(() => sendFile(file));
+  if (files.length === 1) void run(() => sendFile(files[0]));
+  else if (files.length > 1) void run(() => sendFiles(files));
 });
 navigator.serviceWorker?.addEventListener("message", (event) => {
   if (event.data?.type === "tapped") void run(checkTap);

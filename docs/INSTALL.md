@@ -161,7 +161,7 @@ Phone…** in the menu bar.
 | **Mac** | Select a file in Finder and press **⌘⇧M**. To send copied text, press **⌃⇧M** |
 | **Windows** | Select a file in Explorer and press **Ctrl+Shift+M**. Anywhere else, the same keys send what you copied: text, a file or an image |
 | **Android** | In any app, tap **Share → Mox**, for files and text |
-| **iPhone** | **Share → Send to Mox**, or **What I copied** in Mox |
+| **iPhone** | **Share → Send to Mox**, or in Mox: **Photos or files** (one or several) and **What I copied** |
 
 Files land in Downloads (photos and videos in the gallery on Android), and
 files, images and texts go on the clipboard.
@@ -169,7 +169,9 @@ files, images and texts go on the clipboard.
 ### Several files at once
 
 Select several files, or a folder, and send them the same way: in Finder or
-Explorer, or by sharing several photos on Android. They travel together,
+Explorer, or by sharing several photos on Android. On iPhone, open Mox, tap
+**Photos or files** and pick several (the Send to Mox shortcut sends one at
+a time). They travel together,
 up to 50 MB in all, and arrive as the original files:
 
 | On | Where they land |
