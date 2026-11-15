@@ -5,12 +5,18 @@ name: Backend
 on:
   pull_request:
     paths:
+      - "web/app/src/client.ts"
+      - "web/app/src/protocol.ts"
+      - "web/app/src/bundle.ts"
       - "backend/**"
       - "shared/**"
       - ".github/workflows/backend.yml"
   push:
     branches: [main]
     paths:
+      - "web/app/src/client.ts"
+      - "web/app/src/protocol.ts"
+      - "web/app/src/bundle.ts"
       - "backend/**"
       - "shared/**"
       - ".github/workflows/backend.yml"
@@ -51,6 +57,35 @@ jobs:
       # accepted, invalid rows are rejected.
       - name: Check shared fixtures against the schema
         run: ../shared/fixtures/check-rows.sh
+
+  contract:
+    # A real client against a real stack (#13): renaming a column or a
+    # bucket without updating the clients fails here, where mocks wouldn't.
+    name: Contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: supabase/setup-cli@v3
+        with:
+          version: 3.0.0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Start Supabase
+        working-directory: backend
+        run: >
+          supabase start
+          -x studio,imgproxy,edge-runtime,logflare,vector,realtime,mailpit,supavisor,postgres-meta
+
+      - name: Upload, read, sign and download as the Mox user
+        run: |
+          eval "$(cd backend && supabase status -o env)"
+          export API_URL ANON_KEY SERVICE_ROLE_KEY DB_URL PUBLISHABLE_KEY SECRET_KEY
+          node --experimental-transform-types --test backend/contract/contract.test.mts
 
   function:
     name: Edge Function tests
