@@ -8,7 +8,8 @@ internal static partial class WhatToSend
 {
     public abstract record Item;
 
-    public sealed record FileItem(string Path) : Item;
+    /// <summary>One file, or several files and folders sent as a bundle.</summary>
+    public sealed record FilesItem(IReadOnlyList<string> Paths) : Item;
 
     public sealed record TextItem(string Text) : Item;
 
@@ -19,8 +20,8 @@ internal static partial class WhatToSend
         return ExplorerSelection(foreground) ?? Copied();
     }
 
-    /// <summary>The first file selected in the Explorer window in front, if that's what's in front.</summary>
-    private static FileItem? ExplorerSelection(IntPtr foreground)
+    /// <summary>The files and folders selected in the Explorer window in front, if that's what's in front.</summary>
+    private static FilesItem? ExplorerSelection(IntPtr foreground)
     {
         try
         {
@@ -38,14 +39,17 @@ internal static partial class WhatToSend
                     continue;
                 }
 
+                var paths = new List<string>();
                 foreach (var selected in window.Document.SelectedItems())
                 {
                     string path = selected.Path;
-                    if (File.Exists(path))
+                    if (File.Exists(path) || Directory.Exists(path))
                     {
-                        return new FileItem(path);
+                        paths.Add(path);
                     }
                 }
+
+                return paths.Count > 0 ? new FilesItem(paths) : null;
             }
         }
         catch (Exception error) when (error is COMException or InvalidCastException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
@@ -60,10 +64,11 @@ internal static partial class WhatToSend
     {
         if (Clipboard.ContainsFileDropList())
         {
-            var file = Clipboard.GetFileDropList().Cast<string>().FirstOrDefault(File.Exists);
-            if (file is not null)
+            var paths = Clipboard.GetFileDropList().Cast<string>()
+                .Where(path => File.Exists(path) || Directory.Exists(path)).ToList();
+            if (paths.Count > 0)
             {
-                return new FileItem(file);
+                return new FilesItem(paths);
             }
         }
 
@@ -72,7 +77,7 @@ internal static partial class WhatToSend
             var path = Path.Combine(Path.GetTempPath(), $"Image {DateTime.Now:yyyy-MM-dd HH.mm.ss}.png");
             image.Save(path, ImageFormat.Png);
             image.Dispose();
-            return new FileItem(path);
+            return new FilesItem([path]);
         }
 
         return Clipboard.ContainsText() ? new TextItem(Clipboard.GetText()) : null;

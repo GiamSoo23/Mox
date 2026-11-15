@@ -75,14 +75,39 @@ public sealed class SupabaseClient(MoxSettings settings, Guid deviceId, HttpClie
             await UploadAsync(new StreamContent(file), mime, cancel).ConfigureAwait(false);
         }
 
-        return await ReplaceRowAsync(Path.GetFileName(path), mime, size, "file", cancel).ConfigureAwait(false);
+        return await ReplaceRowAsync(Path.GetFileName(path), mime, size, "file", 1, cancel).ConfigureAwait(false);
+    }
+
+    /// <summary>Sends the selection: one file as is, or several files and folders as a bundle (§9).</summary>
+    public async Task<CurrentFile> SendSelectionAsync(IReadOnlyList<string> paths, CancellationToken cancel = default)
+    {
+        var items = Bundles.Items(paths);
+        if (items.Count == 0)
+        {
+            throw new MoxException("There's nothing to send in what's selected.");
+        }
+
+        if (items.Count == 1)
+        {
+            return await SendFileAsync(items[0].Source, cancel).ConfigureAwait(false);
+        }
+
+        var zip = Bundles.Write(items);
+        if (zip.Length > CurrentFile.MaxSize)
+        {
+            throw new MoxException("These files are over 50 MB together, the most Mox sends.");
+        }
+
+        await UploadAsync(new ByteArrayContent(zip), "application/zip", cancel).ConfigureAwait(false);
+        return await ReplaceRowAsync(Bundles.FileName(items.Count), "application/zip", zip.Length, "bundle", items.Count, cancel)
+            .ConfigureAwait(false);
     }
 
     public async Task<CurrentFile> SendTextAsync(string text, CancellationToken cancel = default)
     {
         var bytes = TextPayload.Encode(text);
         await UploadAsync(new ByteArrayContent(bytes), TextPayload.Mime, cancel).ConfigureAwait(false);
-        return await ReplaceRowAsync(TextPayload.FileName, TextPayload.Mime, bytes.Length, "text", cancel).ConfigureAwait(false);
+        return await ReplaceRowAsync(TextPayload.FileName, TextPayload.Mime, bytes.Length, "text", 1, cancel).ConfigureAwait(false);
     }
 
     private async Task UploadAsync(HttpContent content, string mime, CancellationToken cancel)
@@ -93,12 +118,12 @@ public sealed class SupabaseClient(MoxSettings settings, Guid deviceId, HttpClie
         using var response = await SendAsync(request, cancel).ConfigureAwait(false);
     }
 
-    private async Task<CurrentFile> ReplaceRowAsync(string name, string mime, long size, string kind, CancellationToken cancel)
+    private async Task<CurrentFile> ReplaceRowAsync(string name, string mime, long size, string kind, int itemCount, CancellationToken cancel)
     {
         var row = new Dictionary<string, object>
         {
             ["id"] = 1, ["original_name"] = name, ["mime_type"] = mime, ["size_bytes"] = size, ["kind"] = kind,
-            ["item_count"] = 1, ["source_platform"] = "windows", ["source_device_id"] = deviceId.ToString(),
+            ["item_count"] = itemCount, ["source_platform"] = "windows", ["source_device_id"] = deviceId.ToString(),
         };
         using var request = new HttpRequestMessage(HttpMethod.Post, "rest/v1/current_file?on_conflict=id") { Content = JsonContent.Create(row) };
         request.Headers.Add("Content-Profile", "mox");
