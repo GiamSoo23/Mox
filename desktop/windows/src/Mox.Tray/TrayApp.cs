@@ -96,7 +96,7 @@ internal sealed class TrayApp : IDisposable
         try
         {
             var item = await client.FetchCurrentAsync();
-            latest.Text = item is null ? "No file yet" : item.IsText ? "Text" : item.OriginalName;
+            latest.Text = item is null ? "No file yet" : item.Label;
             var lastHandled = SettingsStore.LastHandled;
             if (lastHandled is null)
             {
@@ -109,7 +109,7 @@ internal sealed class TrayApp : IDisposable
                 await ReceiveAsync(item);
             }
         }
-        catch (Exception error) when (error is MoxException or HttpRequestException or InvalidRowException or IOException)
+        catch (Exception error) when (error is MoxException or HttpRequestException or InvalidRowException or BundleRefusedException or IOException)
         {
             status.Text = error.Message.Length > 60 ? error.Message[..60] + "…" : error.Message;
         }
@@ -131,6 +131,12 @@ internal sealed class TrayApp : IDisposable
         }
 
         Directory.CreateDirectory(Downloads);
+        if (item.IsBundle)
+        {
+            await ReceiveBundleAsync(item);
+            return;
+        }
+
         var path = Receiving.UniquePath(Downloads, item.OriginalName!);
         await using (var file = File.Create(path))
         {
@@ -148,6 +154,21 @@ internal sealed class TrayApp : IDisposable
 
         Clipboard.SetDataObject(data, true);
         icon.ShowBalloonTip(5000, "New file from your phone", $"{Path.GetFileName(path)} · in Downloads and on the clipboard", ToolTipIcon.Info);
+    }
+
+    /// <summary>Several files: unpack them into "Mox – 5 files – 14.32" in Downloads, all on the clipboard.</summary>
+    private async Task ReceiveBundleAsync(CurrentFile item)
+    {
+        using var buffer = new MemoryStream();
+        await client!.DownloadAsync(buffer);
+        var folder = Receiving.UniquePath(Downloads, $"Mox – {item.ItemCount} files – {DateTime.Now:HH.mm}");
+        var top = Bundles.Extract(buffer.ToArray(), folder);
+        var data = new DataObject();
+        var list = new StringCollection();
+        list.AddRange([.. top]);
+        data.SetFileDropList(list);
+        Clipboard.SetDataObject(data, true);
+        icon.ShowBalloonTip(5000, $"{item.Label} from your phone", $"In Downloads › {Path.GetFileName(folder)} · on the clipboard", ToolTipIcon.Info);
     }
 
     /// <summary>Opens the setup window (#33). When it finishes, Mox connects and shows the pairing QR.</summary>
@@ -200,7 +221,7 @@ internal sealed class TrayApp : IDisposable
         {
             var sent = item switch
             {
-                WhatToSend.FileItem file => await client.SendFileAsync(file.Path),
+                WhatToSend.FilesItem files => await client.SendSelectionAsync(files.Paths),
                 WhatToSend.TextItem text => await client.SendTextAsync(text.Text),
                 _ => null,
             };
@@ -208,8 +229,8 @@ internal sealed class TrayApp : IDisposable
             {
                 // Don't receive our own send back.
                 SettingsStore.SetLastHandled(sent.UploadedAt ?? "");
-                latest.Text = sent.IsText ? "Text" : sent.OriginalName;
-                icon.ShowBalloonTip(3000, "Sent", sent.IsText ? "Text sent to your phone." : $"{sent.OriginalName} sent to your phone.", ToolTipIcon.Info);
+                latest.Text = sent.Label;
+                icon.ShowBalloonTip(3000, "Sent", $"{sent.Label} sent to your phone.", ToolTipIcon.Info);
             }
         }
         catch (Exception error) when (error is MoxException or HttpRequestException or IOException or UnauthorizedAccessException)

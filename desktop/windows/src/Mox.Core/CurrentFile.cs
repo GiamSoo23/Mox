@@ -29,6 +29,12 @@ public sealed record CurrentFile
     /// <summary>Text to paste, not a file to save (#101).</summary>
     [JsonIgnore] public bool IsText => Kind == "text";
 
+    /// <summary>Several files in one zip, to unpack (PROTOCOL.md §9).</summary>
+    [JsonIgnore] public bool IsBundle => Kind == "bundle";
+
+    /// <summary>What people see: "Text", "5 files", or the file's name.</summary>
+    [JsonIgnore] public string Label => IsText ? "Text" : IsBundle ? $"{ItemCount} files" : OriginalName ?? "File";
+
     /// <summary>Checks the rules of §5, so a bad row gets a clear message.</summary>
     public CurrentFile Validate()
     {
