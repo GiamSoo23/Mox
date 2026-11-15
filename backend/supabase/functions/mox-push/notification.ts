@@ -30,7 +30,11 @@ export function notificationFor(item: Item): Notification {
         : item.kind === "bundle"
         ? `${item.item_count} files from ${from}`
         : `New file from ${from}`;
-    const body = item.kind === "text" ? "Tap to copy it." : `${item.name} · tap to open`;
+    const body = item.kind === "text"
+        ? "Tap to copy it."
+        : item.kind === "bundle"
+        ? "Tap to save them."
+        : `${item.name} · tap to open`;
     return { title, body, kind: item.kind, uploadedAt: item.uploaded_at };
 }
 

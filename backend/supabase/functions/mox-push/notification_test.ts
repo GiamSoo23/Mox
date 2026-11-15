@@ -24,6 +24,7 @@ Deno.test("a text says it can be copied", () => {
 
 Deno.test("a bundle counts its files", () => {
     assertEquals(notificationFor({ ...item, kind: "bundle", item_count: 5 }).title, "5 files from your Mac");
+    assertEquals(notificationFor({ ...item, kind: "bundle", item_count: 5 }).body, "Tap to save them.");
 });
 
 Deno.test("the secret must match exactly", () => {
