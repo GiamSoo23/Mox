@@ -1,6 +1,7 @@
 // Mox for iPhone (#54): a home screen web app that pairs with the desktop,
 // receives through Web Push, and sends photos, files and text.
 import { parsePairingLink } from "../../pair/pairing.js";
+import { readBundle, typeFor } from "./bundle.ts";
 import { MoxClient } from "./client.ts";
 import { base64UrlToBytes, checkFileSize, humanSize, isNew, type Item, type Settings, sourceName } from "./protocol.ts";
 import { store } from "./store.ts";
@@ -155,12 +156,13 @@ async function refresh(fromTap: boolean): Promise<boolean> {
   latest = { item };
   $("latest-title").textContent = item.kind === "text"
     ? `Text from ${sourceName(item.source_platform)}`
-    : `${item.original_name}`;
+    : item.kind === "bundle" ? `${item.item_count} files` : `${item.original_name}`;
   $("latest-detail").textContent = item.kind === "text"
     ? (fresh ? "New" : "")
     : `${humanSize(item.size_bytes)} · from ${sourceName(item.source_platform)}${fresh ? " · new" : ""}`;
   show("copy-text", item.kind === "text" || isImage(item));
-  $("save-file").textContent = item.kind === "text" ? "" : isImage(item) ? "Save or share…" : "Save, copy or share…";
+  $("save-file").textContent = item.kind === "text" ? ""
+    : isImage(item) || item.kind === "bundle" ? "Save or share…" : "Save, copy or share…";
   show("save-file", item.kind !== "text");
   if (fresh) store.setLastHandled(item.uploaded_at);
   if (item.kind === "text") $("latest-detail").textContent = await textOf();
@@ -235,11 +237,17 @@ async function saveFile() {
   message("Downloading…");
   const blob = await blobOf();
   const { item } = latest;
-  const file = new File([blob], item.original_name, { type: item.mime_type ?? blob.type });
+  // A bundle opens the share sheet with every file in it, so photos can be
+  // saved together (PROTOCOL.md §9).
+  const files = item.kind === "bundle"
+    ? (await readBundle(new Uint8Array(await blob.arrayBuffer())))
+      .map((entry) => new File([entry.data], entry.name, { type: typeFor(entry.name) }))
+    : [new File([blob], item.original_name, { type: item.mime_type ?? blob.type })];
+  const file = files[0];
   message("");
-  if (navigator.canShare?.({ files: [file] })) {
+  if (navigator.canShare?.({ files })) {
     // The share sheet has Save Image, Save to Files, and every app.
-    await navigator.share({ files: [file] }).catch((error: Error) => {
+    await navigator.share({ files }).catch((error: Error) => {
       if (error.name !== "AbortError") throw error;
     });
   } else {
