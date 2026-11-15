@@ -2,10 +2,16 @@
 # GitHub release with them. On a PR that touches this workflow or the
 # Android build file, or when run by hand, it's a dry run: build, sign,
 # verify, publish nothing. The builds stay as artifacts for a week.
+# Run by hand with a version (1.0.0) to try a release on real devices
+# first: Android installs it over the current version, keeping the pairing.
 name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (X.Y.Z). Nothing is published."
+        default: "0.0.1"
   push:
     tags: ["v*.*.*"]
   pull_request:
@@ -30,9 +36,11 @@ jobs:
       version: ${{ steps.v.outputs.version }}
     steps:
       - id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then version="${GITHUB_REF_NAME#v}"; else version="0.0.1"; fi
-          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::Tag must be vX.Y.Z, got $GITHUB_REF_NAME"; exit 1; }
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then version="${GITHUB_REF_NAME#v}"; else version="${INPUT_VERSION:-0.0.1}"; fi
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::The version must be X.Y.Z, got $version"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Version: $version"
 
