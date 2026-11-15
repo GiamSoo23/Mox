@@ -18,6 +18,7 @@ Windows PC** and an **Android phone or iPhone**:
 
 - **Computer → phone:** select a file and press **⌘⇧M** (Mac) or **Ctrl+Shift+M** (Windows). It arrives in seconds.
 - **Phone → computer:** tap **Share → Mox**. The file lands in Downloads.
+- **Several files or a folder:** select them all. They travel together and arrive as the original files.
 - **Text too:** copy something on one device and paste it on the other.
 
 Mox runs on **your own** free Supabase project. It has no servers and no
@@ -70,7 +71,7 @@ sequenceDiagram
 
 ## Good to know
 
-- One file at a time, up to 50 MB. Files only, not plain text.
+- Up to 50 MB per send, whether it's one file or several together.
 - Free Supabase projects pause after a week without use. You can restore them from the dashboard.
 - macOS asks you to approve the app once, because it isn't notarized by Apple.
 - On iPhone, Mox is a home screen web app plus a shortcut, so receiving takes one tap on the notification.

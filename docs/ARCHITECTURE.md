@@ -25,6 +25,7 @@ behind these choices is in [DESIGN.md](DESIGN.md).
 | **Stay safe inside a project that also runs another app** | Everything lives in its own `mox` schema, and row level security admits exactly one generated user, so a leaked publishable key reads nothing | [migrations](../backend/supabase/migrations/), [pgTAP tests](../backend/supabase/tests/database/mox_v2_test.sql) |
 | **Receive on Android with no push server** | Firebase would need a central sender, which Mox doesn't have. A foreground service holds one Realtime websocket instead, and treats an event only as "read the row again", so a lost event is recovered on reconnect | [ListeningService.kt](../mobile/android/app/src/main/java/com/mox/app/ListeningService.kt) |
 | **Hand credentials to a phone without typing** | The QR holds a link whose secrets are in the URL fragment, which browsers never send to a server. The Mac's QR window is excluded from screenshots and screen sharing | [PROTOCOL.md §8](../shared/PROTOCOL.md#8-pairing-link-v1) |
+| **Send several files through a one-file slot** | They travel as one uncompressed zip, so the slot still holds a single object. Every app reads it with the same defensive rules (no `..`, links or drive letters, caps on entries and size), checked against shared fixtures. The Mac, Android and iPhone parse the zip themselves, with no libraries, because standard readers hide whether an entry is a link | [PROTOCOL.md §9](../shared/PROTOCOL.md#9-bundle-format-v1), [BundleReader.swift](../desktop/macos/Sources/MoxCore/BundleReader.swift) |
 | **Know when another device sent something** | Each installation has its own device id and remembers the last `uploaded_at` it handled, set by the database so devices never compare their own clocks | [FileReceiver.kt](../mobile/android/app/src/main/java/com/mox/app/FileReceiver.kt) |
 | **Stay reachable when macOS hides the menu bar icon** | Apps can't claim a place on a full menu bar, so opening Mox shows a window and a Dock icon | [HomeWindowController.swift](../desktop/macos/Sources/Mox/HomeWindowController.swift) |
 
@@ -247,6 +248,36 @@ polls every 5 seconds instead of holding a connection.
 | **Skips its own uploads** | `source_device_id` | `source_device_id` |
 | **First read after pairing** | Records the slot, downloads nothing | Records the slot, downloads nothing |
 | **Network error** | Ignored, retried on the next poll | Keeps the last state, reconnects with backoff |
+
+### Several files at once
+
+```mermaid
+flowchart LR
+    A["Select 5 photos<br/>or a folder"] --> B["Pack into an uncompressed zip<br/>kind = bundle, item_count = 5"]
+    B --> C[("One object<br/>in the slot")]
+    C --> D{"Every rule<br/>passes?"}
+    D -- "yes" --> E["Unpack and save<br/>the 5 originals"]
+    D -- "no" --> F["Refuse it all,<br/>unpack nothing"]
+```
+
+One file is always sent as is, even a `.zip`. Several files, or a folder,
+become a **bundle**: an uncompressed zip, because photos and videos are
+already compressed. The row says `kind = bundle` and how many files it has.
+The sender checks the 50 MB limit before packing and names the biggest files
+when it's over.
+
+Before writing anything, the receiver checks every entry: no absolute paths,
+drive letters, backslashes or `..`, no symbolic links, at most 1000 entries
+and 50 MB unpacked, and at least 2 files. One bad entry refuses the whole
+bundle. The rules and their fixtures are in
+[PROTOCOL.md §9](../shared/PROTOCOL.md#9-bundle-format-v1), and every app
+(Mac, Windows, Android, iPhone) is tested against the same files.
+
+| | Mac | Windows | Android | iPhone |
+|---|---|---|---|---|
+| **Sends** | The whole Finder selection | The whole Explorer selection, or copied files | Share several items | One item (Shortcuts) |
+| **Unpacks into** | `Downloads/Mox – 5 files – 14.32/` | The same in Downloads | Gallery or Downloads, by type | The share sheet, with every file |
+| **Zip reader** | Its own, with Compression | System.IO.Compression | Its own, with Inflater | Its own, with DecompressionStream |
 
 ## Concurrency
 
