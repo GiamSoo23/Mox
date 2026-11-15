@@ -113,7 +113,8 @@ test("a bundle row is accepted and its zip unpacks after the round trip (§9)", 
       kind: "bundle", item_count: 2, source_platform: "macos", source_device_id: crypto.randomUUID(),
     }),
   });
-  assert.equal(row.status, 201, await row.clone().text());
+  // 201 when the row is new, 200 when it replaces the one already there.
+  assert.ok([200, 201].includes(row.status), await row.clone().text());
 
   const current = await client.current();
   assert.equal(current?.kind, "bundle");
