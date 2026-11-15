@@ -8,6 +8,33 @@ roadmap milestones (M1 = 0.1.0 … M8 = 1.0.0, see
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-15 · Several files at once
+
+Mox 1.0 works between a Mac or Windows PC and an Android phone or iPhone,
+for files, folders and text, on your own Supabase project.
+
+### Added
+- **Several files at once, or a folder.** Select them all and send them the
+  usual way. They travel together as one bundle (up to 50 MB) and arrive as
+  the original files: in a new folder in Downloads on the Mac and Windows,
+  in the gallery or Downloads on Android, and through the share sheet on
+  iPhone, which can save every photo at once
+  ([#19](https://github.com/GiamSoo23/Mox/issues/19),
+  [#20](https://github.com/GiamSoo23/Mox/issues/20),
+  [#158](https://github.com/GiamSoo23/Mox/issues/158),
+  [#160](https://github.com/GiamSoo23/Mox/issues/160)).
+- Every app refuses a bundle with an unsafe entry before writing anything,
+  and all four are tested against the same shared fixtures.
+- **Contract tests:** a real client runs against a local Supabase on every
+  backend change, so the apps and the database can't drift apart
+  ([#13](https://github.com/GiamSoo23/Mox/issues/13)).
+
+### Changed
+- The README, architecture guide and install guide cover all four platforms
+  and sending several files
+  ([#21](https://github.com/GiamSoo23/Mox/issues/21),
+  [#25](https://github.com/GiamSoo23/Mox/issues/25)).
+
 ## [0.8.0] - 2026-11-13 · Windows
 
 Mox now works between a Mac or Windows PC and an Android phone or iPhone.
@@ -229,7 +256,8 @@ The original personal version: a macOS menu-bar app and an Android app
 sharing one file through Supabase. It was built and used daily before the
 project was versioned, so it has no separate entries.
 
-[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/GiamSoo23/Mox/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/GiamSoo23/Mox/compare/v0.8.0...v1.0.0
 [0.8.0]: https://github.com/GiamSoo23/Mox/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/GiamSoo23/Mox/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/GiamSoo23/Mox/compare/v0.7.0...v0.7.1
