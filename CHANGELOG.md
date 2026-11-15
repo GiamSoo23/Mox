@@ -18,11 +18,13 @@ for files, folders and text, on your own Supabase project.
   usual way. They travel together as one bundle (up to 50 MB) and arrive as
   the original files: in a new folder in Downloads on the Mac and Windows,
   in the gallery or Downloads on Android, and through the share sheet on
-  iPhone, which can save every photo at once
+  iPhone, which can save every photo at once. On iPhone, pick several in
+  Mox with **Photos or files**
   ([#19](https://github.com/GiamSoo23/Mox/issues/19),
   [#20](https://github.com/GiamSoo23/Mox/issues/20),
   [#158](https://github.com/GiamSoo23/Mox/issues/158),
-  [#160](https://github.com/GiamSoo23/Mox/issues/160)).
+  [#160](https://github.com/GiamSoo23/Mox/issues/160),
+  [#173](https://github.com/GiamSoo23/Mox/issues/173)).
 - Every app refuses a bundle with an unsafe entry before writing anything,
   and all four are tested against the same shared fixtures.
 - **Contract tests:** a real client runs against a local Supabase on every

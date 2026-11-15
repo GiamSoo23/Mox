@@ -155,3 +155,96 @@ function crc32(data: Uint8Array): number {
   for (const byte of data) crc = table[(crc ^ byte) & 0xff] ^ (crc >>> 8);
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+// ---- Writing ----------------------------------------------------------------
+
+/** "Mox – 5 files.zip", the name the row carries. */
+export const bundleName = (count: number) => `Mox – ${count} files.zip`;
+
+/**
+ * Names that don't repeat, keeping the order: iPhone often calls every picked
+ * photo "image.jpg", so the second becomes "image (1).jpg", like the other apps.
+ */
+export function uniqueNames(names: string[]): string[] {
+  const taken = new Set<string>();
+  return names.map((original) => {
+    const name = original.replace(/[/\\]/g, "_") || "File";
+    const dot = name.lastIndexOf(".");
+    const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, ""];
+    let candidate = name;
+    for (let n = 1; taken.has(candidate.toLowerCase()); n++) candidate = `${stem} (${n})${ext}`;
+    taken.add(candidate.toLowerCase());
+    return candidate;
+  });
+}
+
+const megabytes = (bytes: number) => `${(bytes / 1_048_576).toFixed(1).replace(/\.0$/, "")} MB`;
+
+/** Throws before reading anything when the files add up to more than 50 MB, naming the 3 biggest. */
+export function checkBundleSize(files: { name: string; size: number }[]): void {
+  const total = files.reduce((sum, file) => sum + file.size, 0);
+  if (total <= MAX_UNPACKED) return;
+  const biggest = [...files].sort((a, b) => b.size - a.size).slice(0, 3)
+    .map((file) => `${file.name} (${megabytes(file.size)})`).join(", ");
+  throw new Error(`These files add up to ${megabytes(total)}, and Mox sends up to 50 MB. The biggest: ${biggest}.`);
+}
+
+/** An uncompressed zip with UTF-8 names, as §9 asks. Names must already be unique. */
+export function writeBundle(files: { name: string; data: Uint8Array }[]): Uint8Array<ArrayBuffer> {
+  if (files.length < 2) throw new Error("A bundle has at least 2 files.");
+  const utf8 = new TextEncoder();
+  const named = files.map((file) => ({ ...file, encoded: utf8.encode(file.name), crc: crc32(file.data) }));
+  const local = named.reduce((sum, f) => sum + 30 + f.encoded.length + f.data.length, 0);
+  const central = named.reduce((sum, f) => sum + 46 + f.encoded.length, 0);
+  const zip = new Uint8Array(local + central + 22);
+  const view = new DataView(zip.buffer);
+  const { time, date } = dosTime(new Date());
+  let offset = 0;
+  const headers: number[] = [];
+  for (const f of named) {
+    headers.push(offset);
+    view.setUint32(offset, 0x04034b50, true);
+    view.setUint16(offset + 4, 20, true); // version needed
+    view.setUint16(offset + 6, 0x0800, true); // names are UTF-8
+    view.setUint16(offset + 8, 0, true); // stored
+    view.setUint16(offset + 10, time, true);
+    view.setUint16(offset + 12, date, true);
+    view.setUint32(offset + 14, f.crc, true);
+    view.setUint32(offset + 18, f.data.length, true);
+    view.setUint32(offset + 22, f.data.length, true);
+    view.setUint16(offset + 26, f.encoded.length, true);
+    zip.set(f.encoded, offset + 30);
+    zip.set(f.data, offset + 30 + f.encoded.length);
+    offset += 30 + f.encoded.length + f.data.length;
+  }
+  const start = offset;
+  named.forEach((f, i) => {
+    view.setUint32(offset, 0x02014b50, true);
+    view.setUint16(offset + 4, (3 << 8) | 20, true); // made by Unix, so the mode below counts
+    view.setUint16(offset + 6, 20, true);
+    view.setUint16(offset + 8, 0x0800, true);
+    view.setUint16(offset + 12, time, true);
+    view.setUint16(offset + 14, date, true);
+    view.setUint32(offset + 16, f.crc, true);
+    view.setUint32(offset + 20, f.data.length, true);
+    view.setUint32(offset + 24, f.data.length, true);
+    view.setUint16(offset + 28, f.encoded.length, true);
+    view.setUint32(offset + 38, 0o100644 << 16 >>> 0, true); // a regular file
+    view.setUint32(offset + 42, headers[i], true);
+    zip.set(f.encoded, offset + 46);
+    offset += 46 + f.encoded.length;
+  });
+  view.setUint32(offset, 0x06054b50, true);
+  view.setUint16(offset + 8, named.length, true);
+  view.setUint16(offset + 10, named.length, true);
+  view.setUint32(offset + 12, offset - start, true);
+  view.setUint32(offset + 16, start, true);
+  return zip;
+}
+
+function dosTime(now: Date) {
+  return {
+    time: (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1),
+    date: ((Math.max(now.getFullYear(), 1980) - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate(),
+  };
+}

@@ -1,5 +1,6 @@
 // Talks to the owner's Supabase project over HTTPS (shared/PROTOCOL.md §2–§4).
 // Same calls as the Mac and Android apps, with fetch instead of an SDK.
+import { bundleName } from "./bundle.ts";
 import { encodeText, type Item, rowFor, type Settings, TEXT_FILE_NAME, validateItem } from "./protocol.ts";
 
 export class MoxClient {
@@ -56,6 +57,12 @@ export class MoxClient {
     const mime = file.type || "application/octet-stream";
     await this.upload(file, mime);
     return this.replaceRow(rowFor(file.name || "File", mime, file.size, "file", this.deviceId));
+  }
+
+  /** Sends a bundle (§9): the zip from writeBundle, holding `count` files. */
+  async sendBundle(zip: Uint8Array<ArrayBuffer>, count: number): Promise<Item> {
+    await this.upload(new Blob([zip], { type: "application/zip" }), "application/zip");
+    return this.replaceRow(rowFor(bundleName(count), "application/zip", zip.length, "bundle", this.deviceId, count));
   }
 
   async sendText(text: string): Promise<Item> {
