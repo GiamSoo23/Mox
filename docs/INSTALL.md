@@ -166,6 +166,22 @@ Phone…** in the menu bar.
 Files land in Downloads (photos and videos in the gallery on Android), and
 files, images and texts go on the clipboard.
 
+### Several files at once
+
+Select several files, or a folder, and send them the same way: in Finder or
+Explorer, or by sharing several photos on Android. They travel together,
+up to 50 MB in all, and arrive as the original files:
+
+| On | Where they land |
+|---|---|
+| **Mac** | A new folder in Downloads, like `Mox – 5 files – 14.32`. All of them are on the clipboard, so ⌘V in Finder pastes them all |
+| **Windows** | The same kind of folder in Downloads, all on the clipboard |
+| **Android** | Each where a single file would go: photos and videos in the gallery, the rest in Downloads |
+| **iPhone** | Tap the notification, then **Save or share…**: the share sheet offers to save them all at once |
+
+A folder keeps its structure. If what you selected is over 50 MB, Mox says
+which files are the biggest.
+
 ### Receiving with Mox closed
 
 Once paired, Android shows a small permanent **Mox is listening** notification,
