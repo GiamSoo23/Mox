@@ -12,6 +12,8 @@ behind these choices is in [DESIGN.md](DESIGN.md).
 - [Pairing a phone](#pairing-a-phone)
 - [Mac client](#mac-client)
 - [Android client](#android-client)
+- [Windows client](#windows-client)
+- [iPhone client](#iphone-client)
 - [Sending and receiving](#sending-and-receiving)
 - [Concurrency](#concurrency)
 
@@ -39,12 +41,16 @@ Every pull request runs what applies to it:
 
 | Area | Checks |
 |---|---|
-| **macOS** | SwiftLint in strict mode, build, 72 XCTest cases |
-| **Android** | ktlint, 27 JUnit tests, APK build |
-| **Database** | 30 pgTAP checks of the schema and of who can read and write what, on a real Postgres in Docker |
-| **Pairing page** | 25 tests against the shared fixtures, then deploys to GitHub Pages |
-| **Secrets** | gitleaks over the full git history |
-| **Releases** | Signed APK, verified against the release key, and the Mac app, published with checksums from a version tag |
+| **macOS** | SwiftLint in strict mode, build, 87 XCTest cases |
+| **Windows** | .NET analyzers with warnings as errors, build for x64 and ARM, 26 xUnit tests |
+| **Android** | ktlint, 35 JUnit tests, APK build |
+| **Pairing page and iPhone** | Typecheck, 53 tests against the shared fixtures, build, then deploys to GitHub Pages |
+| **Database** | 40 pgTAP checks of the schema and of who can read and write what, on a real Postgres in Docker, plus every row fixture inserted against the real constraints |
+| **Contract** | Mox for iPhone's real client against a local Supabase: upload, read, sign and download a file, a text and a bundle, and checks that nobody else gets in |
+| **Edge Functions** | `deno fmt`, `deno check` and Deno tests for `mox-push` and `mox-send` |
+| **Shared fixtures** | The bundle fixtures are rebuilt and checked against a reference reader |
+| **Secrets** | gitleaks over the full git history, plus a check that the OAuth client secret never appears |
+| **Releases** | Signed APK verified against the release key, the Mac app and the Windows exes for x64 and ARM, published with checksums from a version tag |
 
 ---
 
@@ -216,6 +222,29 @@ flowchart TB
 - **Saving:** photos and videos go to the Camera folder, the rest to Downloads, through `MediaStore` with `IS_PENDING` so other apps never see a half-written file.
 - **Clipboard:** written from the background on the phones tested. Where that's refused, tapping the notification opens a transparent activity that writes it.
 
+## Windows client
+
+A .NET 8 app in the notification area, published as one self-contained exe
+for x64 and ARM. `Mox.Core` holds the logic with no UI, tested with xUnit;
+`Mox.Tray` holds the WinForms UI.
+
+- **Setup:** the same flow as the Mac, ported: OAuth with PKCE through a loopback listener on 127.0.0.1 and ::1, the Management API, the migrations and functions embedded from `backend/`, and a progress bar.
+- **Settings:** in `%APPDATA%\Mox`, encrypted with DPAPI for the current Windows user.
+- **Sending:** `RegisterHotKey` for Ctrl+Shift+M. It reads the Explorer selection through the `Shell.Application` COM object, or else the clipboard (files, an image or text).
+- **Receiving:** polls every 5 seconds, saves to Downloads and puts the file, or every file of a bundle, on the clipboard.
+- **One copy, at login:** a new copy quits older ones, and a `HKCU\…\Run` value starts it with Windows.
+
+## iPhone client
+
+A home screen web app, served from GitHub Pages, in TypeScript with no
+framework. iOS doesn't let a web app run in the background, so it relies on
+two system features instead:
+
+- **Web Push, from the user's own project.** A database trigger calls the `mox-push` Edge Function through `pg_net`, which signs a notification with VAPID keys the setup window created. The notification says only what arrived, never the content.
+- **A shortcut in the Share menu.** "Send to Mox" posts the shared file to the `mox-send` Edge Function, which signs in as the Mox user with the credentials the shortcut holds and writes bytes, then row.
+- **Receiving:** tapping the notification opens Mox, which copies texts and images (`ClipboardItem` with a promise, the only way Safari allows after an `await`), and offers the share sheet for everything else. A bundle opens the share sheet with every file.
+- **Pairing:** the QR opens the pairing page, which copies a pairing code; the app reads it from the clipboard after it's added to the home screen, because iOS gives the home screen app its own storage.
+
 ## Sending and receiving
 
 ```mermaid
@@ -282,4 +311,6 @@ bundle. The rules and their fixtures are in
 ## Concurrency
 
 - **Mac:** `async/await` on `URLSession`. Network work runs in `Task`s, UI updates return to the main actor, and the Carbon hotkey callback hops to the main queue.
+- **Windows:** `async/await` on `HttpClient` from the WinForms UI thread, with a flag so a poll never overlaps another or a send.
+- **iPhone:** one page and a service worker; the service worker keeps the last notification tap so the page can act on it when it opens.
 - **Android:** `viewModelScope` for the screen and a service-owned scope for listening. I/O runs on `Dispatchers.IO`, the clipboard on `Dispatchers.Main`, and a process-wide `Mutex` guards receiving.

@@ -4,10 +4,13 @@
 https://github.com/user-attachments/assets/03f4bb3e-eb76-4dc7-8794-5c927f6aafd4
 
 
-**Send a file between your Mac and your Android phone in one step. It lands on the clipboard, ready to paste.**
+**Send files and text between your computer and your phone in one step: Mac or Windows, Android or iPhone. They land on the clipboard, ready to paste.**
 
 [![macOS CI](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/macos.yml)
+[![Windows CI](https://github.com/GiamSoo23/Mox/actions/workflows/windows.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/windows.yml)
 [![Android CI](https://github.com/GiamSoo23/Mox/actions/workflows/android.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/android.yml)
+[![iPhone and pairing page](https://github.com/GiamSoo23/Mox/actions/workflows/web.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/web.yml)
+[![Backend](https://github.com/GiamSoo23/Mox/actions/workflows/backend.yml/badge.svg)](https://github.com/GiamSoo23/Mox/actions/workflows/backend.yml)
 [![Latest release](https://img.shields.io/github/v/release/GiamSoo23/Mox)](https://github.com/GiamSoo23/Mox/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
@@ -23,6 +26,15 @@ Windows PC** and an **Android phone or iPhone**:
 
 Mox runs on **your own** free Supabase project. It has no servers and no
 accounts of its own, so nobody else holds your files.
+
+## Why Mox
+
+| | Works across brands | Phone and computer on different networks | One step, then on the clipboard | Your files stay with you |
+|---|:-:|:-:|:-:|:-:|
+| AirDrop | Apple only | | ✓ | ✓ |
+| Local apps (LocalSend, KDE Connect) | ✓ | Same network | | ✓ |
+| Cloud drives and chats | ✓ | ✓ | | A company holds them |
+| **Mox** | ✓ | ✓ | ✓ | ✓ Your own Supabase |
 
 ## Install
 
@@ -73,7 +85,6 @@ sequenceDiagram
 
 - Up to 50 MB per send, whether it's one file or several together.
 - Free Supabase projects pause after a week without use. You can restore them from the dashboard.
-- macOS asks you to approve the app once, because it isn't notarized by Apple.
 - On iPhone, Mox is a home screen web app plus a shortcut, so receiving takes one tap on the notification.
 - The apps aren't signed by Apple or Microsoft yet, so macOS and Windows warn once.
 

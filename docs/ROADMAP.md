@@ -20,11 +20,12 @@ it isn't.
 | M1 · Baseline and open source | ✅ done, tag [`v0.1.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.1.0) |
 | M2 · Quality gates and CI | ✅ done, tag [`v0.2.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.2.0) |
 | M3 · Backend v2 | ✅ done, tag [`v0.3.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.3.0); migrations applied to the live project |
-| M4 · Runtime config and security | in progress: contract tests ([#13](https://github.com/GiamSoo23/Mox/issues/13)) left |
+| M4 · Runtime config and security | ✅ done; contract tests ([#13](https://github.com/GiamSoo23/Mox/issues/13)) in `v1.0.0` |
 | M5 · QR pairing | ✅ done, tag [`v0.5.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.5.0) |
-| M6 · Multi-file and background receiving | in progress: background receiving shipped in `v0.7.0`, multi-file left |
-| M7 · Setup wizard | ✅ shipped in [`v0.7.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.7.0); install guide screenshots left |
-| M8, v1.1, v1.2 | planned |
+| M6 · Multi-file and background receiving | ✅ done: background receiving in `v0.7.0`, several files at once on all four apps in `v1.0.0` |
+| M7 · Setup wizard | ✅ shipped in [`v0.7.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.7.0), on Windows in [`v0.8.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.8.0) |
+| M8 · Release v1.0 | ✅ `v1.0.0` |
+| v1.1 iPhone, v1.2 Windows | ✅ shipped early: iPhone in [`v0.7.2`](https://github.com/GiamSoo23/Mox/releases/tag/v0.7.2), Windows in [`v0.8.0`](https://github.com/GiamSoo23/Mox/releases/tag/v0.8.0) |
 
 For finished milestones, the tables below show the **original plan**. The
 real commits are in the history, and what changed along the way is noted
